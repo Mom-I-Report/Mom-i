@@ -1,0 +1,19 @@
+# Python 개발 환경 무시 설정
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 가상 환경
+venv/
+env/
+.env
+
+# IDE 및 도구 설정
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# 테스트 및 커버리지
+.pytest_cache/
+htmlcov/
