@@ -3,11 +3,23 @@ uvicorn==0.23.2
 pydantic==2.4.2
 pydantic-settings==2.0.3
 google-generativeai==0.3.1
+jinja2==3.1.2
+reportlab==4.2.2
+aiofiles==23.2.1
+python-dateutil==2.8.2
+
+# 스케줄러
+APScheduler==3.10.4
 
 # Database
-# SQLAlchemy==2.0.21
+SQLAlchemy==2.0.21
+alembic==1.12.1
+# 운영(MySQL) 전환 시 아래 주석 해제
+# pymysql==1.1.0
+# cryptography==41.0.4
 
-# Dev & Test Environments
+# Dev & Test
 pytest==7.4.2
 pytest-asyncio==0.21.1
 httpx==0.25.0
+pytest-cov==4.1.0
