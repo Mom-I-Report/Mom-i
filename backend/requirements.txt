@@ -1,13 +1,31 @@
-fastapi==0.103.2
-uvicorn==0.23.2
-pydantic==2.4.2
-pydantic-settings==2.0.3
-google-generativeai==0.3.1
+# ── Core ──────────────────────────────────────────────────────────────────────
+fastapi==0.135.3
+uvicorn==0.44.0
 
-# Database
-# SQLAlchemy==2.0.21
+# ── Validation ────────────────────────────────────────────────────────────────
+pydantic==2.13.0
+pydantic-settings==2.13.1
 
-# Dev & Test Environments
+# ── AI ────────────────────────────────────────────────────────────────────────
+google-generativeai==0.8.6
+
+# ── Scheduler ─────────────────────────────────────────────────────────────────
+APScheduler==3.11.2
+
+# ── Database ──────────────────────────────────────────────────────────────────
+SQLAlchemy==2.0.49
+alembic==1.18.4
+# 운영(MySQL) 전환 시 아래 주석 해제
+# pymysql==1.1.0
+# cryptography==41.0.4
+
+# ── HTTP Client ───────────────────────────────────────────────────────────────
+httpx==0.28.1
+
+# ── PDF (선택) — infrastructure/pdf/generator.py 스켈레톤 사용 시 설치 ──────────
+# reportlab==4.2.2
+
+# ── Dev & Test ────────────────────────────────────────────────────────────────
 pytest==7.4.2
 pytest-asyncio==0.21.1
-httpx==0.25.0
+pytest-cov==4.1.0
