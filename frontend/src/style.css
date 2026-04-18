@@ -1060,3 +1060,302 @@ body {
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
 }
+
+/* ============================================================
+   PDF / A4 미리보기 페이지
+   dev 브랜치 디자인 통합 — .pdf-view 네임스페이스로 격리
+   ============================================================ */
+
+/* PDF 페이지 전체 배경 */
+.pdf-view {
+  min-height: 100dvh;
+  background: #e8ecf0;
+  padding: 0;
+  padding-bottom: 0;               /* nav 없음 */
+}
+
+/* 상단 컨트롤 바 */
+.pdf-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pdf-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  background: white;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: var(--font-kr);
+  transition: all 0.15s;
+}
+.pdf-back-btn:hover { background: var(--bg); }
+
+.pdf-topbar-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.pdf-print-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #4f86f7;
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font-kr);
+  transition: background 0.15s;
+}
+.pdf-print-btn:hover { background: #2f5fd4; }
+
+/* A4 용지 */
+.pdf-paper-wrap {
+  padding: 32px 24px 48px;
+  display: flex;
+  justify-content: center;
+}
+
+.a4 {
+  width: 794px;        /* 210mm @96dpi */
+  min-height: 1123px;  /* 297mm */
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.12);
+  padding: 52px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', var(--font-kr);
+}
+
+/* A4 헤더 */
+.a4-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 2.5px solid #4f86f7;
+  padding-bottom: 14px;
+}
+.a4-brand {
+  font-size: 24px;
+  font-weight: 800;
+  color: #4f86f7;
+  letter-spacing: -1px;
+}
+.a4-brand sub {
+  font-size: 11px;
+  font-weight: 400;
+  color: #888;
+  margin-left: 4px;
+}
+.a4-meta { text-align: right; }
+.a4-meta .week-label { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.a4-meta .week-sub   { font-size: 11px; color: #888; margin-top: 2px; }
+
+/* A4 섹션 제목 */
+.a4-sec-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #4f86f7;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.a4-sec-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e3e8f0;
+}
+
+/* 요약 카드 4칸 */
+.a4-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.a4-card {
+  background: #eef3ff;
+  border-radius: 10px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.a4-card.highlight { background: #4f86f7; color: #fff; }
+.a4-card-label { font-size: 10px; font-weight: 600; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.4px; }
+.a4-card-value { font-size: 22px; font-weight: 800; line-height: 1; font-family: var(--font-en); }
+.a4-card-unit  { font-size: 11px; opacity: 0.75; }
+
+/* 환경 3칸 */
+.a4-env-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.a4-env-item {
+  border: 1px solid #e3e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.a4-env-item .env-label { font-size: 11px; color: #888; }
+.a4-env-item .env-val   { font-size: 14px; font-weight: 700; color: var(--text-primary); font-family: var(--font-en); }
+
+/* 일별 바 차트 */
+.a4-bars {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  height: 90px;
+}
+.a4-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.a4-bar-wrap {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+}
+.a4-bar {
+  width: 100%;
+  background: #4f86f7;
+  border-radius: 4px 4px 0 0;
+  min-height: 4px;
+}
+.a4-bar-day { font-size: 11px; font-weight: 600; color: #888; }
+.a4-bar-val { font-size: 10px; color: #555; font-family: var(--font-en); }
+
+/* Best/Worst */
+.a4-bw-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.a4-bw-item {
+  border: 1px solid #e3e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.a4-bw-item.best  { border-color: #3bb07a; background: #f0fff8; }
+.a4-bw-item.worst { border-color: #e05c5c; background: #fff5f5; }
+.a4-bw-badge { font-size: 11px; font-weight: 700; margin-bottom: 4px; }
+.a4-bw-item.best  .a4-bw-badge { color: #3bb07a; }
+.a4-bw-item.worst .a4-bw-badge { color: #e05c5c; }
+.a4-bw-day   { font-size: 15px; font-weight: 800; color: var(--text-primary); margin-bottom: 2px; font-family: var(--font-en); }
+.a4-bw-score { font-size: 11px; color: #888; }
+
+/* AI 코멘트 박스 */
+.a4-ai-box {
+  background: #eef3ff;
+  border-left: 3px solid #4f86f7;
+  border-radius: 0 8px 8px 0;
+  padding: 16px 18px;
+}
+.a4-ai-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2f5fd4;
+  margin-bottom: 8px;
+}
+.a4-ai-text {
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--text-primary);
+}
+
+/* 케어 팁 리스트 */
+.a4-tips {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.a4-tip-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid #e3e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.a4-tip-icon { font-size: 18px; flex-shrink: 0; }
+.a4-tip-title { font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+.a4-tip-content { font-size: 11px; color: #555; line-height: 1.6; }
+
+/* A4 푸터 */
+.a4-footer {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid #e3e8f0;
+  font-size: 10px;
+  color: #888;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* 리포트 페이지 → PDF 버튼 */
+.pdf-view-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px var(--space-lg);
+  background: white;
+  color: #4f86f7;
+  font-family: var(--font-kr);
+  font-size: 14px;
+  font-weight: 700;
+  border: 2px solid #4f86f7;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.pdf-view-btn:hover {
+  background: #eef3ff;
+  transform: translateY(-1px);
+}
+
+/* ── 인쇄 ── */
+@media print {
+  .pdf-topbar  { display: none; }
+  .pdf-paper-wrap { padding: 0; }
+  .a4 {
+    box-shadow: none;
+    border-radius: 0;
+    width: 100%;
+    min-height: auto;
+  }
+}
+

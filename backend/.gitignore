@@ -1,19 +1,122 @@
-# Python 개발 환경 무시 설정
+# ══════════════════════════════════════════════════════
+#  M-Take 리포트 서버 — .gitignore (실서비스 기준)
+# ══════════════════════════════════════════════════════
+
+
+# ── 기밀 / 환경변수 ──────────────────────────────────
+.env
+.env.*                    # .env.production, .env.staging 등 모든 변형
+!.env.example             # 예시 파일만 허용
+
+# Google / 클라우드 서비스 계정 키
+credentials.json
+service-account*.json
+*-service-account.json
+gcp-key*.json
+google-credentials*.json
+
+# SSL / 인증서 / 개인키
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+
+
+# ── 데이터베이스 ─────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+# Alembic 자동 생성 마이그레이션은 커밋 대상이지만 DB 파일은 제외
+# alembic/versions/ 는 추적 유지
+
+
+# ── Python ───────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyo
+*.pyd
+.Python
 
-# 가상 환경
+# 배포 산출물
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-log.txt
+
+
+# ── 가상 환경 ─────────────────────────────────────────
 venv/
+.venv/
 env/
-.env
+ENV/
+venv.bak/
+env.bak/
 
-# IDE 및 도구 설정
+
+# ── 로그 ─────────────────────────────────────────────
+*.log
+logs/
+log/
+
+
+# ── 테스트 / 커버리지 ─────────────────────────────────
+.pytest_cache/
+.hypothesis/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+nosetests.xml
+test-results/
+
+
+# ── 정적 분석 ─────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+
+
+# ── IDE / 에디터 ──────────────────────────────────────
 .vscode/
 .idea/
 *.swp
-.DS_Store
+*.swo
+*~
+.project
+.pydevproject
+*.sublime-project
+*.sublime-workspace
 
-# 테스트 및 커버리지
-.pytest_cache/
-htmlcov/
+
+# ── OS ────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+
+# ── 업로드 / 생성 파일 ────────────────────────────────
+uploads/
+media/
+*.pdf                     # 생성된 PDF 리포트 (generator.py 출력물)
+
+
+# ── Docker (로컬 오버라이드만 제외) ──────────────────
+docker-compose.override.yml
+.docker/
+
+
+# ── 기타 ──────────────────────────────────────────────
+.ipynb_checkpoints/
+*.bak
+*.tmp

@@ -15,7 +15,7 @@ import {
 // 라우터 (Hash-based SPA)
 // ============================================================
 
-type Route = 'dashboard' | 'report' | 'history';
+type Route = 'dashboard' | 'report' | 'history' | 'pdf';
 
 let currentRoute: Route = 'dashboard';
 
@@ -23,6 +23,7 @@ function getRoute(): Route {
   const hash = window.location.hash.replace('#/', '');
   if (hash === 'report') return 'report';
   if (hash === 'history') return 'history';
+  if (hash === 'pdf') return 'pdf';
   return 'dashboard';
 }
 
@@ -376,9 +377,173 @@ function renderReport(): string {
         </div>
       </div>
 
+      <!-- PDF 미리보기 버튼 -->
+      <div class="section">
+        <button class="pdf-view-btn" id="btn-go-pdf" onclick="window.__navigate('pdf')">
+          📄 A4 PDF 문서로 보기
+          <span style="font-size:18px">→</span>
+        </button>
+      </div>
+
       <div class="generated-at">리포트 생성: ${currentWeek.reportGeneratedAt} · Powered by Gemini 1.5 Flash</div>
 
       ${renderNav('report')}
+    </div>
+  `;
+}
+
+// ============================================================
+// 페이지: A4 PDF 미리보기
+// ============================================================
+
+function renderPDF(): string {
+  const maxSleep = Math.max(...dailySleepData.map(d => d.actualSleepMinutes));
+
+  const bars = dailySleepData.map(day => {
+    const pct = Math.round((day.actualSleepMinutes / (maxSleep || 1)) * 72);
+    const h = Math.floor(day.actualSleepMinutes / 60);
+    const m = day.actualSleepMinutes % 60;
+    return `
+      <div class="a4-bar-col">
+        <div class="a4-bar-wrap">
+          <div class="a4-bar" style="height:${pct}px"></div>
+        </div>
+        <div class="a4-bar-day">${day.date}</div>
+        <div class="a4-bar-val">${h}h${m > 0 ? m + 'm' : ''}</div>
+      </div>`;
+  }).join('');
+
+  const tips = aiAnalysis.tips.map(tip => `
+    <div class="a4-tip-item">
+      <span class="a4-tip-icon">${tip.icon}</span>
+      <div>
+        <div class="a4-tip-title">${tip.title} <span style="font-size:10px;color:#888;font-weight:400">[${tip.tag}]</span></div>
+        <div class="a4-tip-content">${tip.content}</div>
+      </div>
+    </div>`).join('');
+
+  return `
+    <div class="pdf-view">
+      <!-- 컨트롤 바 -->
+      <div class="pdf-topbar">
+        <button class="pdf-back-btn" onclick="window.__navigate('report')">← 돌아가기</button>
+        <span class="pdf-topbar-title">📄 PDF 미리보기 — ${babyProfile.name}이 ${currentWeek.weekNum}주차 리포트</span>
+        <button class="pdf-print-btn" onclick="window.print()">🖨️ 인쇄 / PDF 저장</button>
+      </div>
+
+      <!-- A4 용지 -->
+      <div class="pdf-paper-wrap">
+        <div class="a4">
+
+          <!-- 헤더 -->
+          <div class="a4-header">
+            <div class="a4-brand">Mom-i <sub>영유아 수면 분석 리포트</sub></div>
+            <div class="a4-meta">
+              <div class="week-label">${currentWeek.weekNum}주차 · ${currentWeek.startDate} ~ ${currentWeek.endDate}</div>
+              <div class="week-sub">생성일: ${currentWeek.reportGeneratedAt} | ${babyProfile.name} (${babyProfile.ageInMonths}개월)</div>
+            </div>
+          </div>
+
+          <!-- 주간 요약 -->
+          <div>
+            <div class="a4-sec-title">주간 요약</div>
+            <div class="a4-summary-grid">
+              <div class="a4-card highlight">
+                <div class="a4-card-label">수면 점수</div>
+                <div class="a4-card-value">${weeklyStats.avgScore}</div>
+                <div class="a4-card-unit">/ 100점</div>
+              </div>
+              <div class="a4-card">
+                <div class="a4-card-label">평균 총 수면</div>
+                <div class="a4-card-value">${formatMinutes(weeklyStats.avgTotalSleep)}</div>
+                <div class="a4-card-unit">/ 일</div>
+              </div>
+              <div class="a4-card">
+                <div class="a4-card-label">평균 실수면</div>
+                <div class="a4-card-value">${formatMinutes(weeklyStats.avgActualSleep)}</div>
+                <div class="a4-card-unit">/ 일</div>
+              </div>
+              <div class="a4-card">
+                <div class="a4-card-label">평균 뒤척임</div>
+                <div class="a4-card-value">${weeklyStats.avgTossing}</div>
+                <div class="a4-card-unit">분 / 일</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 수면 환경 -->
+          <div>
+            <div class="a4-sec-title">수면 환경</div>
+            <div class="a4-env-grid">
+              <div class="a4-env-item">
+                <span class="env-label">평균 온도</span>
+                <span class="env-val">${weeklyStats.avgTemp}°C</span>
+              </div>
+              <div class="a4-env-item">
+                <span class="env-label">평균 소음</span>
+                <span class="env-val">${weeklyStats.avgNoise} dB</span>
+              </div>
+              <div class="a4-env-item">
+                <span class="env-label">권장 온도</span>
+                <span class="env-val">20~22°C</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 일별 수면 바 차트 -->
+          <div>
+            <div class="a4-sec-title">일별 실수면 시간</div>
+            <div class="a4-bars">${bars}</div>
+          </div>
+
+          <!-- Best / Worst -->
+          <div>
+            <div class="a4-sec-title">Best &amp; Worst</div>
+            <div class="a4-bw-row">
+              <div class="a4-bw-item best">
+                <div class="a4-bw-badge">🏅 최고의 날</div>
+                <div class="a4-bw-day">${weeklyStats.bestDay.date} (${weeklyStats.bestDay.fullDate})</div>
+                <div class="a4-bw-score">수면 점수 ${weeklyStats.bestDay.sleepScore}점 · 실수면 ${formatMinutes(weeklyStats.bestDay.actualSleepMinutes)}</div>
+              </div>
+              <div class="a4-bw-item worst">
+                <div class="a4-bw-badge">😅 가장 힘든 날</div>
+                <div class="a4-bw-day">${weeklyStats.worstDay.date} (${weeklyStats.worstDay.fullDate})</div>
+                <div class="a4-bw-score">수면 점수 ${weeklyStats.worstDay.sleepScore}점 · 뒤척임 ${weeklyStats.worstDay.tossingMinutes}분</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI 분석 -->
+          <div>
+            <div class="a4-sec-title">AI 분석 코멘트 (Gemini)</div>
+            <div class="a4-ai-box">
+              <div class="a4-ai-label">✨ AI 분석 · Gemini 1.5 Flash</div>
+              <div class="a4-ai-text">${aiAnalysis.overallComment}</div>
+            </div>
+          </div>
+
+          <!-- 케어 팁 -->
+          <div>
+            <div class="a4-sec-title">이번 주 케어 팁</div>
+            <div class="a4-tips">${tips}</div>
+          </div>
+
+          <!-- 발달 가이드 -->
+          <div>
+            <div class="a4-sec-title">${aiAnalysis.ageGuidance.title}</div>
+            <div class="a4-ai-box">
+              <div class="a4-ai-text">${aiAnalysis.ageGuidance.content}</div>
+            </div>
+          </div>
+
+          <!-- 푸터 -->
+          <div class="a4-footer">
+            <span>Mom-i © 2026 — AI 분석 결과는 의학적 진단을 대체하지 않습니다</span>
+            <span>생후 ${babyProfile.ageInMonths}개월 | Powered by Gemini 1.5 Flash</span>
+          </div>
+
+        </div>
+      </div>
     </div>
   `;
 }
@@ -459,6 +624,12 @@ function renderHistory(): string {
 function render() {
   currentRoute = getRoute();
   const app = document.getElementById('app')!;
+
+  // PDF 페이지는 app-shell(모바일 wrapper) 없이 full-width로 렌더
+  if (currentRoute === 'pdf') {
+    app.innerHTML = renderPDF();
+    return;
+  }
 
   let html = '';
   switch (currentRoute) {
