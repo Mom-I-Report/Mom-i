@@ -1,151 +1,198 @@
 from sqlalchemy.orm import Session
-from datetime import date, timedelta, datetime
-from dateutil.relativedelta import relativedelta
+from datetime import date, datetime
+from typing import Optional
 
-from app.infrastructure.database.repository import sleep_data_repo, report_repo
+from app.domain.report.schemas import (
+    GenerateReportRequest,
+    GenerateReportResponse,
+    ReportSummary,
+    DailySummary,
+    TrendData,
+    ReportHistoryResponse,
+    ReportItem,
+)
+from app.infrastructure.database.repository import report_repo
 from app.infrastructure.llm.gemini_client import generate_insight
 
-
-DAY_KO = ["월", "화", "수", "목", "금", "토", "일"]
-
-
-def _parse_hours(time_str: str) -> float:
-    """'9h30m' → 9.5, '45m' → 0.75"""
-    hours, mins = 0.0, 0.0
-    if "h" in time_str:
-        parts = time_str.split("h")
-        hours = float(parts[0])
-        time_str = parts[1]
-    if "m" in time_str:
-        mins = float(time_str.replace("m", ""))
-    return round(hours + mins / 60, 2)
+_DAY_KO = ["월", "화", "수", "목", "금", "토", "일"]
 
 
-def _parse_minutes(time_str: str) -> int:
-    """'18m' → 18, '1h5m' → 65"""
-    hours, mins = 0, 0
-    if "h" in time_str:
-        parts = time_str.split("h")
-        hours = int(parts[0])
-        time_str = parts[1]
-    if "m" in time_str:
-        mins = int(time_str.replace("m", ""))
-    return hours * 60 + mins
-
-
-def build_report_data(db: Session, user_id: int, week_start: date) -> dict:
-    """
-    DB에서 1주치 데이터를 조회·집계하여 리포트 템플릿용 dict를 반환합니다.
-    """
-    from app.domain.sleep_data.entity import User
-    user = db.query(User).filter(User.user_id == user_id).first()
-    if not user:
-        raise ValueError(f"사용자를 찾을 수 없습니다: {user_id}")
-
-    sleep_logs = sleep_data_repo.get_weekly_sleep_logs(db, user_id, week_start)
-    env_logs   = sleep_data_repo.get_weekly_environment_logs(db, user_id, week_start)
-    event_logs = sleep_data_repo.get_weekly_event_logs(db, user_id, week_start)
-
-    # ── 수면 집계 ──
-    sleep_hours_list = [_parse_hours(l.day_gs) for l in sleep_logs if l.day_gs]
-    restless_min_list= [_parse_minutes(l.day_pr) for l in sleep_logs if l.day_pr]
-    avg_sleep_h      = round(sum(sleep_hours_list) / len(sleep_hours_list), 1) if sleep_hours_list else 0
-    avg_restless_min = round(sum(restless_min_list) / len(restless_min_list)) if restless_min_list else 0
-
-    # ── 환경 집계 ──
-    temp_avgs = [e.temp_avg for e in env_logs if e.temp_avg is not None]
-    temp_maxs = [e.temp_max for e in env_logs if e.temp_max is not None]
-    temp_mins = [e.temp_min for e in env_logs if e.temp_min is not None]
-    db_maxs   = [e.db_max  for e in env_logs if e.db_max  is not None]
-    temp_avg  = round(sum(temp_avgs) / len(temp_avgs), 1) if temp_avgs else 0
-    temp_max  = max(temp_maxs) if temp_maxs else 0
-    temp_min  = min(temp_mins) if temp_mins else 0
-    db_max    = max(db_maxs)   if db_maxs   else 0
-
-    # ── 이벤트 집계 ──
-    cry_count  = sum(1 for e in event_logs if e.event_type == "Crying")
-    leave_count= sum(1 for e in event_logs if e.event_type == "Leave")
-
-    # ── 일별 바 차트 데이터 ──
-    max_h = max(sleep_hours_list) if sleep_hours_list else 10
-    daily_sleep = []
-    log_by_date = {l.measured_date: l for l in sleep_logs}
-    for i in range(7):
-        d = week_start + timedelta(days=i)
-        log = log_by_date.get(d)
-        if log:
-            sh = _parse_hours(log.day_gs)
-            rm = _parse_minutes(log.day_pr)
-            sleep_pct   = int(sh / max_h * 75)
-            restless_pct= int(rm / 60 / max_h * 75)
-        else:
-            sh, rm, sleep_pct, restless_pct = 0, 0, 0, 0
-        daily_sleep.append({
-            "label": DAY_KO[i],
-            "sleep_h": sh,
-            "restless_min": rm,
-            "sleep_pct": sleep_pct,
-            "restless_pct": restless_pct,
-        })
-
-    # ── 월령 계산 ──
-    baby_age_months = relativedelta(date.today(), user.baby_birth).months + \
-                      relativedelta(date.today(), user.baby_birth).years * 12
-
-    # ── 주차 레이블 ──
+def _week_label(week_start: date) -> str:
+    """날짜 → '2026년 4월 2주차' 형식"""
     week_num = (week_start.day - 1) // 7 + 1
-    week_label = f"{week_start.year}년 {week_start.month}월 {week_num}주차"
+    return f"{week_start.year}년 {week_start.month}월 {week_num}주차"
 
-    # ── AI 인사이트 ──
-    daily_summary = " / ".join(
-        f"{d['label']} {d['sleep_h']}h" for d in daily_sleep
+
+def _build_summary(req: GenerateReportRequest) -> ReportSummary:
+    sleep_mins    = [s.sleep_min for s in req.sleep]
+    restless_mins = [s.restless_min for s in req.sleep]
+    return ReportSummary(
+        avg_sleep_h=round(sum(sleep_mins) / len(sleep_mins) / 60, 1),
+        avg_restless_min=round(sum(restless_mins) / len(restless_mins)),
+        cry_count=req.events.cry_count,
+        leave_count=req.events.leave_count,
+        temp_avg=req.environment.temp_avg,
+        db_max=req.environment.db_max,
     )
-    ai_comment = generate_insight({
-        "baby_name": user.baby_name,
-        "baby_age_months": baby_age_months,
-        "week_label": week_label,
-        "avg_sleep_h": avg_sleep_h,
-        "avg_restless_min": avg_restless_min,
-        "temp_avg": temp_avg,
-        "db_max": db_max,
-        "cry_count": cry_count,
-        "leave_count": leave_count,
-        "daily_summary": daily_summary,
-    })
 
-    # ── 이벤트 칩 ──
-    events = []
-    if cry_count:
-        events.append({"label": f"울음 {cry_count}회", "style": ""})
-    if leave_count:
-        events.append({"label": f"카메라 이탈 {leave_count}회", "style": ""})
-    if not events:
-        events.append({"label": "특이 이벤트 없음", "style": "calm"})
 
-    report_dict = {
-        "baby_name":       user.baby_name,
-        "week_label":      week_label,
-        "created_at":      date.today().strftime("%Y-%m-%d"),
-        "ser_no":          user.ser_no,
-        "avg_sleep_h":     avg_sleep_h,
-        "avg_restless_min":avg_restless_min,
-        "cry_count":       cry_count,
-        "leave_count":     leave_count,
-        "temp_avg":        temp_avg,
-        "temp_max":        temp_max,
-        "temp_min":        temp_min,
-        "db_max":          db_max,
-        "ai_comment":      ai_comment,
-        "daily_sleep":     daily_sleep,
-        "events":          events,
+def _build_daily(req: GenerateReportRequest) -> list:
+    return [
+        DailySummary(
+            date=s.date,
+            day=_DAY_KO[s.date.weekday()],
+            sleep_h=round(s.sleep_min / 60, 1),
+            restless_min=s.restless_min,
+        )
+        for s in req.sleep
+    ]
+
+
+def _build_trend(
+    db: Session,
+    req: GenerateReportRequest,
+    summary: ReportSummary,
+) -> Optional[TrendData]:
+    """이전 주 WeeklyData가 있으면 트렌드 계산, 없으면 None"""
+    prev_data = report_repo.get_recent_weekly_data(db, req.ser_no, req.week_start, weeks=1)
+    if not prev_data:
+        return None
+
+    prev = prev_data[0]
+    prev_sleeps   = [s["sleep_min"]    for s in prev.sleep_json]
+    prev_restless = [s["restless_min"] for s in prev.sleep_json]
+
+    prev_avg_sleep_h   = round(sum(prev_sleeps)   / len(prev_sleeps)   / 60, 1)
+    prev_avg_restless  = round(sum(prev_restless) / len(prev_restless))
+    prev_cry           = prev.event_json.get("cry_count", 0)
+
+    return TrendData(
+        sleep_vs_last_week=round(summary.avg_sleep_h - prev_avg_sleep_h, 1),
+        restless_vs_last_week=summary.avg_restless_min - prev_avg_restless,
+        cry_vs_last_week=summary.cry_count - prev_cry,
+    )
+
+
+def _build_ai_context(
+    db: Session,
+    req: GenerateReportRequest,
+    summary: ReportSummary,
+) -> dict:
+    """Gemini에 넘길 컨텍스트 구성 — 최대 3주치 + 일별 상세 포함"""
+    ctx: dict = {
+        "baby_age_months": req.baby_age_months,
+        "week_label": _week_label(req.week_start),
+        "this_week": {
+            "avg_sleep_h":      summary.avg_sleep_h,
+            "avg_restless_min": summary.avg_restless_min,
+            "cry_count":        summary.cry_count,
+            "leave_count":      summary.leave_count,
+            "temp_avg":         req.environment.temp_avg,
+            "temp_max":         req.environment.temp_max,
+            "temp_min":         req.environment.temp_min,
+            "db_avg":           req.environment.db_avg,
+            "db_max":           req.environment.db_max,
+        },
+        # 일별 상세: AI가 패턴을 파악하는 데 사용
+        "daily": [
+            {
+                "day":          _DAY_KO[s.date.weekday()],
+                "sleep_h":      round(s.sleep_min / 60, 1),
+                "restless_min": s.restless_min,
+            }
+            for s in req.sleep
+        ],
     }
 
-    # ── 리포트 이력 저장 ──
-    report_repo.save_report(
+    prev_data = report_repo.get_recent_weekly_data(db, req.ser_no, req.week_start, weeks=2)
+
+    if len(prev_data) >= 1:
+        p = prev_data[0]
+        ps = [s["sleep_min"]    for s in p.sleep_json]
+        pr = [s["restless_min"] for s in p.sleep_json]
+        ctx["last_week"] = {
+            "avg_sleep_h":     round(sum(ps) / len(ps) / 60, 1),
+            "avg_restless_min": round(sum(pr) / len(pr)),
+            "cry_count":       p.event_json.get("cry_count", 0),
+        }
+
+    if len(prev_data) >= 2:
+        p2 = prev_data[1]
+        ps2 = [s["sleep_min"]    for s in p2.sleep_json]
+        pr2 = [s["restless_min"] for s in p2.sleep_json]
+        ctx["two_weeks_ago"] = {
+            "avg_sleep_h":     round(sum(ps2) / len(ps2) / 60, 1),
+            "avg_restless_min": round(sum(pr2) / len(pr2)),
+            "cry_count":       p2.event_json.get("cry_count", 0),
+        }
+
+    return ctx
+
+
+# ── Public API ─────────────────────────────────────
+
+def generate_report(db: Session, req: GenerateReportRequest) -> GenerateReportResponse:
+    """
+    1. 원본 데이터 저장 (AI 컨텍스트용)
+    2. 요약 / 일별 / 트렌드 계산
+    3. Gemini AI 조언 생성
+    4. 리포트 저장 후 리턴
+    """
+    # Step 1 — 원본 저장
+    report_repo.save_weekly_data(
         db=db,
-        user_id=user_id,
-        ai_kick_comment=ai_comment,
-        measured_week_start=week_start,
+        ser_no=req.ser_no,
+        week_start=req.week_start,
+        sleep_json=[s.model_dump(mode="json") for s in req.sleep],
+        env_json=req.environment.model_dump(),
+        event_json=req.events.model_dump(),
     )
 
-    return report_dict
+    # Step 2 — 집계
+    summary = _build_summary(req)
+    daily   = _build_daily(req)
+    trend   = _build_trend(db, req, summary)
+
+    # Step 3 — AI 조언 (최대 3주치 컨텍스트)
+    ai_context = _build_ai_context(db, req, summary)
+    ai_comment = generate_insight(ai_context)
+
+    # Step 4 — 리포트 저장
+    week_label  = _week_label(req.week_start)
+    report_data = GenerateReportResponse(
+        ser_no=req.ser_no,
+        week_start=req.week_start,
+        week_label=week_label,
+        generated_at=datetime.now(),
+        summary=summary,
+        daily=daily,
+        trend=trend,
+        ai_comment=ai_comment,
+    )
+
+    report_repo.save_report(
+        db=db,
+        ser_no=req.ser_no,
+        week_start=req.week_start,
+        report_json=report_data.model_dump(mode="json"),
+        ai_comment=ai_comment,
+    )
+
+    return report_data
+
+
+def get_report_history(db: Session, ser_no: str) -> ReportHistoryResponse:
+    """최근 3주치 리포트 이력 조회"""
+    reports = report_repo.get_recent_reports(db, ser_no, limit=3)
+    if not reports:
+        raise ValueError("조회 가능한 리포트가 없습니다.")
+
+    items = [
+        ReportItem(
+            week_start=r.week_start,
+            week_label=_week_label(r.week_start),
+            report_json=r.report_json,
+        )
+        for r in reports
+    ]
+    return ReportHistoryResponse(reports=items, total=len(items))

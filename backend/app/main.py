@@ -1,16 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.interfaces.api.v1 import report_api, sleep_data_api
+from app.interfaces.api.v1 import report_api, etf_api
 from app.infrastructure.database.session import create_tables
 from app.infrastructure.scheduler import start_scheduler
 
 app = FastAPI(
-    title="M-Take Sleep Analysis API",
-    description="맘아이 앱 연동 영유아 수면 분석 및 주간 리포트 시스템",
-    version="0.1.0",
+    title="M-Take 리포트 서버",
+    description="맘아이 앱 연동 영유아 주간 수면 AI 리포트 생성·보관·조회 서버",
+    version="0.2.0",
 )
 
-# ── CORS (맘아이 앱 도메인 허용) ──
+# ── CORS ──
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],        # 운영 시 실제 앱 도메인으로 교체
@@ -24,9 +24,10 @@ def on_startup():
     create_tables()
     start_scheduler()
 
-app.include_router(report_api.router,     prefix="/api/v1", tags=["리포트"])
-app.include_router(sleep_data_api.router, prefix="/api/v1/sleep-data", tags=["수면 데이터"])
+# ── 라우터 등록 ──
+app.include_router(report_api.router, prefix="/api/v1/report", tags=["리포트"])
+app.include_router(etf_api.router,    prefix="/api/v1/etf",    tags=["ETF 리밸런싱"])
 
 @app.get("/")
 async def root():
-    return {"message": "M-Take Sleep Analysis API"}
+    return {"message": "M-Take 리포트 서버"}

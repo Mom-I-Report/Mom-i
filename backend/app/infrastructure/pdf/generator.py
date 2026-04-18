@@ -49,25 +49,37 @@ def _styles():
 
 def generate_pdf(data: dict) -> bytes:
     """
-    data 예시:
+    GenerateReportResponse 기반 data 예시 (baby_name 없음 — ser_no 식별):
     {
-        "baby_name": "민준",
-        "week_label": "2025년 4월 2주차",
-        "created_at": "2025-04-11",
         "ser_no": "MT-00123",
-        "avg_sleep_h": 9.2,
-        "avg_restless_min": 18,
-        "cry_count": 3,
-        "leave_count": 1,
-        "temp_avg": 23.1, "temp_max": 24.5, "temp_min": 21.8,
-        "db_max": 62,
-        "ai_comment": "이번 주 민준이는 평균 9시간 이상의 안정된 수면을 보여주었습니다...",
-        "daily_sleep": [
-            {"label": "월", "sleep_h": 9.5, "restless_min": 20},
-            ...
+        "week_label": "2026년 4월 2주차",
+        "generated_at": "2026-04-14T10:00:00",
+        "summary": {
+            "avg_sleep_h": 9.2,
+            "avg_restless_min": 18,
+            "cry_count": 3,
+            "leave_count": 1,
+            "temp_avg": 23.1, "temp_max": 24.5, "temp_min": 21.8,
+            "db_max": 62, "db_avg": 45
+        },
+        "daily": [
+            {"day": "월", "sleep_h": 9.5, "restless_min": 20},
+            ...  (7일치)
         ],
-        "events": ["울음 3회", "카메라 이탈 1회"]
+        "trend": {
+            "sleep_vs_last_week": 0.3,
+            "restless_vs_last_week": -5,
+            "cry_vs_last_week": -1
+        },  # 첫 주차이면 None
+        "ai_comment": "이번 주 아기는 평균 9시간 이상의 안정된 수면을 보여주었습니다..."
     }
+
+    NOTE: 이 모듈은 향후 PDF 출력 경로 구현을 위한 스켈레톤입니다.
+    현재 API는 JSON으로 리포트를 반환하며, PDF 기능은 아직 라우터에 연결되어 있지 않습니다.
+    연결 시 아래 필드 매핑을 참고하세요:
+        data["summary"]["avg_sleep_h"]  →  avg_sleep_h
+        data["daily"]                   →  daily_sleep (label → day 키 변경 필요)
+        data["trend"]                   →  Optional, None 처리 필요
     """
     buf = BytesIO()
     doc = SimpleDocTemplate(
@@ -84,7 +96,7 @@ def generate_pdf(data: dict) -> bytes:
     # ── 헤더 ──
     header_data = [[
         Paragraph("M-Take", s["brand"]),
-        Paragraph(f"<b>{data['baby_name']} 아기</b><br/>{data['week_label']} | 생성일: {data['created_at']}", s["body"]),
+        Paragraph(f"<b>아기 (SN: {data.get('ser_no', '')})</b><br/>{data['week_label']} | 생성일: {data.get('generated_at', '')[:10]}", s["body"]),
     ]]
     header_tbl = Table(header_data, colWidths=[W * 0.5, W * 0.5])
     header_tbl.setStyle(TableStyle([
