@@ -8,7 +8,6 @@ gemini_client.py — Gemini 2.5 Flash 비동기 클라이언트
   3. JSON 출력 — response_mime_type: "application/json" + 프롬프트 강제
   4. JSON 검증 — ai_comment / sleep_guide / age_kick 필드 존재 여부 확인
   5. 토큰 로깅 — 매 호출마다 입력·출력·합계 토큰 수 로그 기록 (비용 추적)
-  6. Thinking budget — 1024 토큰으로 제한 (추론 품질 유지 + 속도 균형)
 """
 import asyncio
 import json
@@ -37,12 +36,11 @@ _model = genai.GenerativeModel(
 _REQUIRED_FIELDS = ["ai_comment", "sleep_guide", "age_kick"]
 
 # sleep_guide 필수 하위 필드
-_SLEEP_GUIDE_FIELDS = ["method_name", "reason", "tonight_guide", "caution"]
+_SLEEP_GUIDE_FIELDS = ["method_name", "title", "reason", "steps"]
 
 # age_kick 필수 하위 필드
-_AGE_KICK_FIELDS = ["title", "description", "tip", "is_wonder_weeks"]
+_AGE_KICK_FIELDS = ["title", "text", "is_wonder_weeks"]
 
-_THINKING_BUDGET = 1024
 _MAX_ATTEMPTS   = 3
 _BACKOFF_BASE   = 1.0
 _RETRYABLE_KEYWORDS = ("429", "quota", "rate", "503", "unavailable")
@@ -58,6 +56,8 @@ def _is_retryable(exc: Exception) -> bool:
 def _validate_json(data: dict) -> list[str]:
     """JSON 구조에서 누락된 필드 목록을 반환한다."""
     missing = [f for f in _REQUIRED_FIELDS if f not in data]
+    if "ai_comment" in data and not isinstance(data["ai_comment"], list):
+        missing.append("ai_comment (list 타입이어야 함)")
     if "sleep_guide" in data and isinstance(data["sleep_guide"], dict):
         missing += [f"sleep_guide.{f}" for f in _SLEEP_GUIDE_FIELDS if f not in data["sleep_guide"]]
     if "age_kick" in data and isinstance(data["age_kick"], dict):
@@ -85,7 +85,6 @@ async def _call_gemini(prompt: str) -> str:
     """
     generation_config = {
         "response_mime_type": "application/json",
-        "thinking_config": {"thinking_budget": _THINKING_BUDGET},
     }
     last_exc: Exception | None = None
 
@@ -121,17 +120,16 @@ async def generate_insight(ctx: dict) -> dict:
 
     반환 구조:
     {
-        "ai_comment": "이번 주 총평 텍스트",
+        "ai_comment": [{"type": "caution"|"good", "icon": "🌡️", "title": "...", "text": "..."}],
         "sleep_guide": {
             "method_name": "퍼버법",
+            "title": "✨ 추천 솔루션: ...",
             "reason": "...",
-            "tonight_guide": "...",
-            "caution": "..."
+            "steps": ["1단계 ...", "2단계 ...", "3단계 ..."]
         },
         "age_kick": {
             "title": "8개월 분리불안",
-            "description": "...",
-            "tip": "...",
+            "text": "...",
             "is_wonder_weeks": true
         }
     }

@@ -42,13 +42,14 @@
 ## 시스템 개요
 
 ```
-맘아이 서버  →  POST /api/v1/report/generate  →  리포트 JSON 반환
-앱 (사용자)  →  GET  /api/v1/report/history/{ser_no}  →  최근 3주치
+맘아이 서버  →  POST /api/v1/reports/generate        →  리포트 JSON 반환
+앱 (사용자)  →  GET  /api/v1/reports                 →  목록 (최근 10건)
+앱 (사용자)  →  GET  /api/v1/reports/{report_id}     →  상세
 ```
 
-- **스택:** FastAPI + SQLAlchemy (SQLite/MySQL) + Gemini 2.5 Flash
-- **DB:** Weekly_Data, Generated_Reports, ETF 3개 테이블
-- **AI:** Gemini 2.5 Flash — async, 재시도(최대 3회), 5섹션 검증, Thinking Budget 1024
+- **스택:** FastAPI + SQLAlchemy + MariaDB 10.11 + Gemini 2.5 Flash
+- **DB:** Weekly_Data, Generated_Reports 2개 테이블
+- **AI:** Gemini 2.5 Flash — async, 재시도(최대 3회), 3필드 검증, JSON 출력 강제
 
 ---
 
@@ -58,7 +59,7 @@
 |------|------|
 | AI 리포트 (비용 절감·신뢰성) | 노호종 |
 | 도메인 지식 (소아과 기준·점수 산식) | 담당자 |
-| 백엔드 공통 (인프라·ETF·배포) | 담당자 |
+| 백엔드 공통 (인프라·배포) | 담당자 |
 
 ---
 
@@ -68,9 +69,7 @@
 
 1. **수면 점수 산식** — 히스토리·Best/Worst·일별 점수 전부의 선결 조건
 2. **취침/기상 시각** — EMTAKE에서 수신 가능한지 확인 필요
-3. **AI 출력 형식** — 텍스트(현재) vs 구조화 JSON 결정 (앱팀 협의)
-4. **리포트 보존 기간** — 현재 3주, UI는 6주 표시
-5. **발달 가이드** — 고정 콘텐츠 vs Gemini 생성
+3. **리포트 보존 기간** — 현재 3주, PDF 스펙은 4~8주 표시
 
 ---
 

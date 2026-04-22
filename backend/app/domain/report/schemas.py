@@ -13,7 +13,7 @@ EMTAKE 프로토콜 → 맘아이 서버 → 리포트 서버 데이터 변환 �
   - EMTAKE Breath(호흡수), Temp(체온 상승), IndoorTemp, dB: 맘아이 서버가 수집 후 push
 """
 from pydantic import BaseModel, field_validator
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from datetime import date, datetime
 
 
@@ -142,25 +142,26 @@ class ReportSummary(BaseModel):
     month_restless_h: float
 
 
+class AiCommentItem(BaseModel):
+    """AI 분석 팁 단건. 프론트 카드 1개에 대응."""
+    type: str       # "caution" | "good"
+    icon: str       # 이모지
+    title: str
+    text: str
+
+
 class SleepGuide(BaseModel):
-    """
-    AI가 추천하는 수면 교육법.
-    이번 주 수면 패턴을 바탕으로 Gemini가 생성.
-    """
+    """AI가 추천하는 수면 교육법."""
     method_name: str        # 교육법 이름 (예: "퍼버법", "의자법")
-    reason: str             # 이 교육법을 추천하는 이유
-    tonight_guide: str      # 오늘 밤 바로 실행할 수 있는 가이드
-    caution: str            # 주의사항
+    title: str              # 솔루션 제목 ("✨ 추천 솔루션: '퍼버법'을 활용한 ...")
+    reason: str             # 추천 이유 (데이터 근거 포함)
+    steps: List[str]        # 단계별 실행 가이드 (3단계)
 
 
 class AgeKick(BaseModel):
-    """
-    월령별 주요 발달 이슈.
-    baby_age_months 기반으로 Gemini가 생성.
-    """
+    """월령별 주요 발달 이슈."""
     title: str              # 이슈 제목 (예: "8개월 분리불안")
-    description: str        # 이슈 설명
-    tip: str                # 부모 대처 팁
+    text: str               # 이슈 설명 + 부모 대처 팁
     is_wonder_weeks: bool   # 원더윅스 해당 여부
 
 
@@ -170,7 +171,7 @@ class GenerateReportResponse(BaseModel):
     """
     POST /reports/generate 응답 및 DB 저장 기준 구조.
 
-    ai_comment   : 이번 주 수면 총평 텍스트 (Gemini 생성)
+    ai_comment   : AI 분석 팁 목록 [{type, icon, title, text}] (Gemini 생성)
     sleep_guide  : 추천 수면 교육법 (Gemini 생성)
     age_kick     : 월령별 발달 이슈 (Gemini 생성)
     trend        : 이전 데이터 없으면 null
@@ -184,7 +185,7 @@ class GenerateReportResponse(BaseModel):
     body_temp: BodyTempSummary
     daily: List[DailySummary]
     trend: Optional[TrendData]
-    ai_comment: str
+    ai_comment: List[AiCommentItem]
     sleep_guide: Optional[SleepGuide] = None
     age_kick: Optional[AgeKick] = None
 
@@ -227,6 +228,6 @@ class ReportDetailResponse(BaseModel):
     body_temp: BodyTempSummary
     daily: List[DailySummary]
     trend: Optional[TrendData]
-    ai_comment: str
+    ai_comment: List[AiCommentItem]
     sleep_guide: Optional[SleepGuide] = None
     age_kick: Optional[AgeKick] = None
