@@ -1,4 +1,4 @@
-# M-Take Sleep Analysis API
+# 맘아이 리포트 서버 API
 
 맘아이(mom-i) 앱에서 수면 데이터를 받아 Gemini AI로 주간 리포트를 생성하는 백엔드 서버입니다.
 
@@ -102,9 +102,9 @@ copy .env.example .env    # Windows
 `.env` 파일 내용:
 
 ```
-PROJECT_NAME="M-Take Sleep Analysis"
+PROJECT_NAME="맘아이 리포트 서버"
 GEMINI_API_KEY="여기에_발급받은_Gemini_API_키_입력"
-DATABASE_URL="sqlite:///./m_take.db"
+DATABASE_URL="sqlite:///./momi.db"
 ```
 
 > Gemini API 키 발급: https://aistudio.google.com/app/apikey
@@ -205,12 +205,12 @@ POST /api/v1/sleep-data/data
 
 ## DB 구성
 
-개발 환경에서는 SQLite를 사용합니다 (서버 첫 실행 시 `m_take.db` 자동 생성).
+개발 환경에서는 SQLite를 사용합니다 (서버 첫 실행 시 `momi.db` 자동 생성).
 
 운영 환경(MySQL)으로 전환 시 `.env`의 `DATABASE_URL`만 변경:
 
 ```
-DATABASE_URL="mysql+pymysql://user:password@localhost:3306/mtake"
+DATABASE_URL="mysql+pymysql://momi_user:your_db_password_here@localhost:3306/momi_db"
 ```
 
 MySQL 사용 시 추가 패키지 설치:

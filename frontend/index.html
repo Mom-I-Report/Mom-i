@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>M-Take 리포트 미리보기</title>
+  <title>Mom-i 리포트 미리보기</title>
   <style>
     /* ── 기본 ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -362,7 +362,7 @@
 
   <!-- ── 사이드 입력 패널 ── -->
   <aside class="side">
-    <div class="side-logo">M-Take <span>리포트 미리보기</span></div>
+    <div class="side-logo">Mom-i <span>리포트 미리보기</span></div>
 
     <!-- 기본 정보 -->
     <div>
@@ -583,7 +583,7 @@ function renderReport(d) {
 
     <!-- 헤더 -->
     <div class="report-header">
-      <div class="report-brand">M-Take <sub>수면 리포트</sub></div>
+      <div class="report-brand">Mom-i <sub>수면 리포트</sub></div>
       <div class="report-meta">
         <div class="week">${d.week_label}</div>
         <div class="sub">생성일: ${generatedAt} | SN: ${d.ser_no}</div>
@@ -653,7 +653,7 @@ function renderReport(d) {
 
     <!-- 푸터 -->
     <div class="report-footer">
-      <span>M-Take © 2026 — AI 분석 결과로 의학적 진단을 대체하지 않습니다</span>
+      <span>Mom-i © 2026 — AI 분석 결과로 의학적 진단을 대체하지 않습니다</span>
       <span>생후 ${d.summary ? '' : ''}${document.getElementById('age').value}개월</span>
     </div>
 
