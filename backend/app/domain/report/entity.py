@@ -38,7 +38,7 @@ class WeeklyData(Base):
       monthly_json   : {month_sleep_h, month_restless_h}
 
     보존 기간:
-      3주치 초과 시 매주 월요일 10:00 KST 스케줄러가 물리 삭제.
+      12주 초과 시 매주 월요일 10:00 KST 스케줄러가 물리 삭제. (AI 고도화 컨텍스트용)
     """
     __tablename__ = "Weekly_Data"
 
@@ -75,7 +75,7 @@ class GeneratedReport(Base):
       향후 이전 조언 참조 기능 구현 시 빠른 접근을 위해 별도 컬럼으로 분리.
 
     보존 기간:
-      3주치 초과 시 매주 월요일 10:00 KST 스케줄러가 물리 삭제.
+      5주 초과 시 매주 월요일 10:00 KST 스케줄러가 물리 삭제. (앱 3주 열람 + 여유 2주)
     """
     __tablename__ = "Generated_Reports"
 

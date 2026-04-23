@@ -254,18 +254,21 @@ def get_admin_stats(db: Session) -> dict:
 
 def delete_old_data(db: Session) -> None:
     """
-    3주치 초과 데이터를 물리 삭제한다.
+    보존 기간 초과 데이터를 물리 삭제한다.
 
     실행 주기: 매주 월요일 10:00 KST (scheduler.py에서 자동 호출).
-    삭제 기준: week_start < 오늘 - 3주 인 모든 행.
 
-    삭제 대상 테이블:
-      - Weekly_Data       : AI 컨텍스트용 원본 데이터
-      - Generated_Reports : 생성된 리포트
+    삭제 기준:
+      - Generated_Reports : 5주 초과 (앱 3주 열람 + 여유 2주)
+      - Weekly_Data       : 12주 초과 (AI 고도화 컨텍스트용, 아기 발달 주기 기준 3개월)
 
     소프트 삭제 없음 — 개인정보 최소화 원칙에 따라 완전 물리 삭제.
     """
-    cutoff = date.today() - timedelta(weeks=3)
-    db.query(WeeklyData).filter(WeeklyData.week_start < cutoff).delete()
-    db.query(GeneratedReport).filter(GeneratedReport.week_start < cutoff).delete()
+    today = date.today()
+    db.query(GeneratedReport).filter(
+        GeneratedReport.week_start < today - timedelta(weeks=5)
+    ).delete()
+    db.query(WeeklyData).filter(
+        WeeklyData.week_start < today - timedelta(weeks=12)
+    ).delete()
     db.commit()

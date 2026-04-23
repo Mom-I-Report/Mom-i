@@ -294,6 +294,10 @@ function avgBedtime() {
   const avg = Math.round(mins.reduce((a,b)=>a+b,0)/mins.length);
   return `${String(Math.floor(avg/60)).padStart(2,'0')}:${String(avg%60).padStart(2,'0')}`;
 }
+function md2html(str) {
+  return str.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
 function setStatus(msg, cls='') {
   const el = document.getElementById('status');
   el.textContent = msg; el.className = cls;
@@ -398,12 +402,12 @@ function renderReport(d) {
     <div class="ai-sol-wrap">
       <div class="ai-badge">✨ AI 추천 솔루션</div>
       <div class="ai-sol-title">${d.sleep_guide.title}</div>
-      <div class="ai-sol-reason">${d.sleep_guide.reason}</div>
+      <div class="ai-sol-reason">${md2html(d.sleep_guide.reason)}</div>
       <div class="ai-steps">
         ${d.sleep_guide.steps.map((s,i)=>`
           <div class="ai-step">
             <div class="step-num">${i+1}</div>
-            <div class="step-text">${s}</div>
+            <div class="step-text">${md2html(s)}</div>
           </div>`).join('')}
       </div>
     </div>` : ''}
@@ -414,7 +418,7 @@ function renderReport(d) {
           <div class="tip-icon">${t.icon}</div>
           <div>
             <div class="tip-title">${t.title}</div>
-            <div class="tip-text">${t.text}</div>
+            <div class="tip-text">${md2html(t.text)}</div>
           </div>
         </div>`).join('')}
     </div>
@@ -424,7 +428,7 @@ function renderReport(d) {
       <div class="kick-icon">💡</div>
       <div>
         <div class="kick-title">${d.age_kick.title}</div>
-        <div class="kick-text">${d.age_kick.text}</div>
+        <div class="kick-text">${md2html(d.age_kick.text)}</div>
       </div>
     </div>` : ''}
 

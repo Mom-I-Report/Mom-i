@@ -113,10 +113,10 @@ core/
 
 | 테이블 | 역할 | 보존 기간 |
 |--------|------|---------|
-| `Weekly_Data` | 주간 원본 (Gemini 3주 트렌드 컨텍스트용) | 3주 rolling |
-| `Generated_Reports` | 생성된 리포트 전체 JSON | 3주 rolling |
+| `Weekly_Data` | 주간 원본 (Gemini AI 고도화 컨텍스트용) | 12주 rolling |
+| `Generated_Reports` | 생성된 리포트 전체 JSON (앱 열람용) | 5주 rolling |
 
-스케줄러가 매주 월요일 10:00 KST에 `week_start < 오늘-3주` 행을 물리 삭제.  
+스케줄러가 매주 월요일 10:00 KST에 물리 삭제. 두 테이블의 보존 기간이 다름.  
 `create_tables()`는 DDL 자동 생성용 (startup 시 실행). 스키마 변경은 Alembic 사용.
 
 ### 인증
