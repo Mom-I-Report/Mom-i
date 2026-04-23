@@ -1,17 +1,23 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings
+
+# config.py 기준 3단계 상위 = 프로젝트 루트
+_ROOT_ENV = Path(__file__).resolve().parents[3] / ".env"
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "M-Take 리포트 서버"
+    PROJECT_NAME: str = "맘아이 리포트 서버"
     GEMINI_API_KEY: str = ""
-    DATABASE_URL: str = "sqlite:///./m_take.db"
+    DATABASE_URL: str = "sqlite:///./momi.db"
 
-    # ETF 시장 데이터 API (없으면 더미 가격 사용)
-    MARKET_API_URL: str = ""
-    MARKET_API_KEY: str = ""
+    # 맘아이 메인 서버가 발급한 JWT를 검증하는 공유 시크릿 (HS256)
+    JWT_SECRET: str = ""
+
+    # 맘아이 서버 → 리포트 서버 호출 시 사용하는 API Key (X-API-Key 헤더)
+    ADMIN_API_KEY: str = ""
 
     class Config:
-        env_file = ".env"
+        env_file = str(_ROOT_ENV)
 
 
 settings = Settings()

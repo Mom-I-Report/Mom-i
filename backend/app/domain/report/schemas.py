@@ -1,35 +1,86 @@
+"""
+schemas.py — 리포트 서버 Pydantic 스키마 전체 정의
+
+데이터 흐름별 구분:
+  [요청] 맘아이 서버 → 리포트 서버  : GenerateReportRequest 및 하위 모델
+  [응답] 리포트 서버 → 맘아이 서버  : GenerateReportResponse 및 하위 모델
+  [목록] 앱 → 리포트 서버           : ReportListResponse (카드형 요약)
+  [상세] 앱 → 리포트 서버           : ReportDetailResponse (전체 필드)
+
+EMTAKE 프로토콜 → 맘아이 서버 → 리포트 서버 데이터 변환 책임:
+  - SleepData.day_gs "4h50m" → sleep_min(분 정수) 변환: 맘아이 서버 담당
+  - SleepData.month_gs "3h45m" → month_sleep_h(시간 float) 변환: 맘아이 서버 담당
+  - EMTAKE Breath(호흡수), Temp(체온 상승), IndoorTemp, dB: 맘아이 서버가 수집 후 push
+"""
 from pydantic import BaseModel, field_validator
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from datetime import date, datetime
 
 
-# ── 요청: 맘아이 서버 → 리포트 서버 ──────────────────────
+# ── 요청: 맘아이 서버 → 리포트 서버 ─────────────────────────────────────────
 
 class SleepDay(BaseModel):
+    """
+    하루치 수면 데이터.
+    EMTAKE SleepData.day_gs / day_pr 에서 맘아이 서버가 분 단위 정수로 변환해 전달.
+    """
     date: date
-    sleep_min: int      # 수면 시간 (분 단위 정수, 예: 570 = 9시간 30분)
-    restless_min: int   # 뒤척임 시간 (분)
+    sleep_min: int
+    restless_min: int
 
 
 class EnvironmentData(BaseModel):
+    """실내 환경 집계 데이터. EMTAKE CMD: IndoorTemp + CMD: dB."""
     temp_avg: float
     temp_max: float
     temp_min: float
-    db_max: int         # 최대 소음 (dB)
-    db_avg: int         # 평균 소음 (dB)
+    db_max: int
+    db_avg: int
+
+
+class BreathData(BaseModel):
+    """수면 중 호흡수 데이터. EMTAKE CMD: Breath. 단위: 회/분."""
+    breath_min: int
+    breath_max: int
+    breath_avg: int
+
+
+class BodyTempData(BaseModel):
+    """수면 중 체온 상승 데이터. EMTAKE CMD: Temp. 단위: °C."""
+    body_temp_min: float
+    body_temp_max: float
+    body_temp_avg: float
+
+
+class MonthlySummary(BaseModel):
+    """월간 수면 집계 데이터. EMTAKE CMD: SleepData month_gs / month_pr."""
+    month_sleep_h: float
+    month_restless_h: float
 
 
 class EventData(BaseModel):
+    """수면 중 이벤트 횟수 (울음 감지, 카메라 이탈)."""
     cry_count: int
     leave_count: int
 
 
 class GenerateReportRequest(BaseModel):
-    ser_no: str                     # 기기 식별자 (개인정보 없음)
-    baby_age_months: int            # 월령 — 맘아이 서버가 계산해서 넘김
-    week_start: date                # 리포트 대상 주 시작일 (월요일)
-    sleep: List[SleepDay]          # 7일치 수면 데이터
+    """
+    맘아이 서버가 리포트 서버에 push하는 주간 데이터 요청 모델.
+
+    ser_no          : 기기 시리얼 번호 — 유일한 식별자 (개인정보 없음)
+    baby_age_months : 월령 — 맘아이 서버가 생년월일 기반 계산 후 전달
+    week_start      : 리포트 대상 주 시작일 (반드시 월요일)
+    sleep           : 7일치 수면 데이터 (validator로 7개 강제)
+    """
+    ser_no: str
+    baby_age_months: int
+    week_start: date
+    sleep: List[SleepDay]
     environment: EnvironmentData
+    breath: BreathData
+    body_temp: BodyTempData
+    monthly: MonthlySummary
     events: EventData
 
     @field_validator("sleep")
@@ -40,49 +91,143 @@ class GenerateReportRequest(BaseModel):
         return v
 
 
-# ── 응답: 리포트 서버 → 맘아이 서버 ──────────────────────
+# ── 응답 공통 하위 모델 ───────────────────────────────────────────────────────
 
 class DailySummary(BaseModel):
+    """일별 수면 요약 — 앱 UI의 일별 차트·목록에 사용."""
     date: date
-    day: str            # "월", "화", "수" ...
-    sleep_h: float      # 수면 시간 (시간, 소수점 1자리)
+    day: str
+    sleep_h: float
     restless_min: int
 
 
 class TrendData(BaseModel):
-    sleep_vs_last_week: float       # 지난주 대비 평균 수면 변화 (시간)
-    restless_vs_last_week: int      # 지난주 대비 뒤척임 변화 (분)
+    """
+    지난 주 대비 변화량. 이전 데이터가 없으면 None.
+    양수(+) = 이번 주가 지난 주보다 증가/높음.
+    """
+    sleep_vs_last_week: float
+    restless_vs_last_week: int
     cry_vs_last_week: int
+    breath_vs_last_week: int
+    body_temp_vs_last_week: float
+
+
+class BreathSummary(BaseModel):
+    """호흡수 분석 결과. is_normal은 AAP 기준 월령별 범위로 판정."""
+    breath_min: int
+    breath_max: int
+    breath_avg: int
+    is_normal: bool
+    normal_range: str
+
+
+class BodyTempSummary(BaseModel):
+    """체온 분석 결과. status: "정상" | "미열 주의" | "발열 의심"."""
+    body_temp_min: float
+    body_temp_max: float
+    body_temp_avg: float
+    status: str
 
 
 class ReportSummary(BaseModel):
+    """주간 핵심 요약 지표."""
     avg_sleep_h: float
     avg_restless_min: int
     cry_count: int
     leave_count: int
     temp_avg: float
     db_max: int
+    month_sleep_h: float
+    month_restless_h: float
 
+
+class AiCommentItem(BaseModel):
+    """AI 분석 팁 단건. 프론트 카드 1개에 대응."""
+    type: str       # "caution" | "good"
+    icon: str       # 이모지
+    title: str
+    text: str
+
+
+class SleepGuide(BaseModel):
+    """AI가 추천하는 수면 교육법."""
+    method_name: str        # 교육법 이름 (예: "퍼버법", "의자법")
+    title: str              # 솔루션 제목 ("✨ 추천 솔루션: '퍼버법'을 활용한 ...")
+    reason: str             # 추천 이유 (데이터 근거 포함)
+    steps: List[str]        # 단계별 실행 가이드 (3단계)
+
+
+class AgeKick(BaseModel):
+    """월령별 주요 발달 이슈."""
+    title: str              # 이슈 제목 (예: "8개월 분리불안")
+    text: str               # 이슈 설명 + 부모 대처 팁
+    is_wonder_weeks: bool   # 원더윅스 해당 여부
+
+
+# ── 리포트 생성 응답 ─────────────────────────────────────────────────────────
 
 class GenerateReportResponse(BaseModel):
+    """
+    POST /reports/generate 응답 및 DB 저장 기준 구조.
+
+    ai_comment   : AI 분석 팁 목록 [{type, icon, title, text}] (Gemini 생성)
+    sleep_guide  : 추천 수면 교육법 (Gemini 생성)
+    age_kick     : 월령별 발달 이슈 (Gemini 생성)
+    trend        : 이전 데이터 없으면 null
+    """
     ser_no: str
     week_start: date
-    week_label: str                 # "2026년 4월 2주차"
+    week_label: str
     generated_at: datetime
     summary: ReportSummary
+    breath: BreathSummary
+    body_temp: BodyTempSummary
     daily: List[DailySummary]
-    trend: Optional[TrendData]      # 이전 데이터 없으면 None
-    ai_comment: str
+    trend: Optional[TrendData]
+    ai_comment: List[AiCommentItem]
+    sleep_guide: Optional[SleepGuide] = None
+    age_kick: Optional[AgeKick] = None
 
 
-# ── 이력 조회: 앱 → 리포트 서버 ──────────────────────────
+# ── 앱 전용 응답: 목록(카드형) ────────────────────────────────────────────────
 
-class ReportItem(BaseModel):
+class ReportListItem(BaseModel):
+    """
+    GET /reports 응답의 단건 카드.
+    목록 화면에서 필요한 요약 정보만 포함해 네트워크를 절약한다.
+    """
+    report_id: int
     week_start: date
     week_label: str
-    report_json: Dict[str, Any]
+    avg_sleep_h: float
+    avg_restless_min: int
+    sleep_guide_method: Optional[str] = None   # sleep_guide.method_name
 
 
-class ReportHistoryResponse(BaseModel):
-    reports: List[ReportItem]
+class ReportListResponse(BaseModel):
+    """GET /reports 응답."""
+    reports: List[ReportListItem]
     total: int
+
+
+# ── 앱 전용 응답: 상세 ────────────────────────────────────────────────────────
+
+class ReportDetailResponse(BaseModel):
+    """
+    GET /reports/{report_id} 응답.
+    프론트 report.html 전체 렌더링에 필요한 모든 필드 포함.
+    """
+    report_id: int
+    ser_no: str
+    week_start: date
+    week_label: str
+    generated_at: datetime
+    summary: ReportSummary
+    breath: BreathSummary
+    body_temp: BodyTempSummary
+    daily: List[DailySummary]
+    trend: Optional[TrendData]
+    ai_comment: List[AiCommentItem]
+    sleep_guide: Optional[SleepGuide] = None
+    age_kick: Optional[AgeKick] = None

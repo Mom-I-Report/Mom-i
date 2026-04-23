@@ -10,8 +10,7 @@ from app.core.config import settings
 from app.infrastructure.database.session import Base
 
 # 모든 엔티티를 import해야 autogenerate가 테이블을 인식합니다
-import app.domain.sleep_data.entity  # noqa
-import app.domain.report.entity      # noqa
+import app.domain.report.entity  # noqa
 
 config = context.config
 

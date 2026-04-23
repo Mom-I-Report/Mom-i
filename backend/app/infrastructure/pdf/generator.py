@@ -95,7 +95,7 @@ def generate_pdf(data: dict) -> bytes:
 
     # ── 헤더 ──
     header_data = [[
-        Paragraph("M-Take", s["brand"]),
+        Paragraph("Mom-i", s["brand"]),
         Paragraph(f"<b>아기 (SN: {data.get('ser_no', '')})</b><br/>{data['week_label']} | 생성일: {data.get('generated_at', '')[:10]}", s["body"]),
     ]]
     header_tbl = Table(header_data, colWidths=[W * 0.5, W * 0.5])
@@ -195,7 +195,7 @@ def generate_pdf(data: dict) -> bytes:
     story.append(HRFlowable(width=W, color=BORDER))
     story.append(Spacer(1, 4))
     story.append(Paragraph(
-        f"M-Take © 2025 — 본 리포트는 AI 분석 결과로, 의학적 진단을 대체하지 않습니다.　|　카메라 SN: {data.get('ser_no', '')}",
+        f"Mom-i © 2025 — 본 리포트는 AI 분석 결과로, 의학적 진단을 대체하지 않습니다.　|　카메라 SN: {data.get('ser_no', '')}",
         s["small"]
     ))
 
