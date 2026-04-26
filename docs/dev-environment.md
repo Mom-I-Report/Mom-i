@@ -15,7 +15,7 @@
 | Python | 3.12.9 |
 | 패키지 관리자 | Miniforge (conda) + pip |
 | Python 실행 경로 | `C:\Users\xntn4\miniforge3\python.exe` |
-| 개발 DB | SQLite (`backend/m_take.db`, 자동 생성) |
+| 개발 DB | SQLite (`backend/momi.db`, 자동 생성) |
 | 운영 DB | MySQL (`.env`의 `DATABASE_URL`로 전환) |
 
 ---
@@ -48,14 +48,14 @@ Swagger UI: `http://localhost:8000/docs`
 | 변수명 | 필수 | 기본값 | 설명 |
 |--------|------|--------|------|
 | `GEMINI_API_KEY` | ✅ | — | Google Gemini API 키 |
-| `DATABASE_URL` | | `sqlite:///./m_take.db` | DB 연결 문자열 |
+| `DATABASE_URL` | | `sqlite:///./momi.db` | DB 연결 문자열 |
 | `MARKET_API_URL` | | `""` | ETF 시장 데이터 API URL |
 | `MARKET_API_KEY` | | `""` | ETF 시장 데이터 API 키 (없으면 더미 가격 사용) |
 
 **.env.example 템플릿:**
 ```
 GEMINI_API_KEY=your_key_here
-DATABASE_URL=sqlite:///./m_take.db
+DATABASE_URL=sqlite:///./momi.db
 MARKET_API_URL=
 MARKET_API_KEY=
 ```
@@ -133,7 +133,7 @@ mom-i/
 │   │   │   │       ├── report_repo.py           # WeeklyData, GeneratedReport CRUD
 │   │   │   │       └── etf_repo.py              # ETF CRUD + 커서 페이지네이션
 │   │   │   ├── llm/
-│   │   │   │   └── gemini_client.py             # Gemini 1.5 Flash 클라이언트
+│   │   │   │   └── gemini_client.py             # Gemini 2.5 Flash 클라이언트 (async·재시도·5섹션 검증)
 │   │   │   ├── market/
 │   │   │   │   └── price_client.py              # ETF 시장가 API (더미 fallback)
 │   │   │   ├── pdf/
@@ -155,7 +155,7 @@ mom-i/
 
 ### 6.1 SQLite (개발)
 
-서버 첫 기동 시 `backend/m_take.db` 자동 생성 — 별도 설정 불필요.
+서버 첫 기동 시 `backend/momi.db` 자동 생성 — 별도 설정 불필요.
 
 생성 테이블:
 ```
@@ -208,7 +208,10 @@ curl -X POST http://localhost:8000/api/v1/report/generate \
       {"date": "2026-04-13", "sleep_min": 590, "restless_min": 18}
     ],
     "environment": {"temp_avg": 23.1, "temp_max": 24.5, "temp_min": 21.8, "db_max": 62, "db_avg": 48},
-    "events": {"cry_count": 3, "leave_count": 1}
+    "events": {"cry_count": 3, "leave_count": 1},
+    "breath": {"breath_min": 22, "breath_max": 38, "breath_avg": 28},
+    "body_temp": {"body_temp_min": 36.3, "body_temp_max": 37.1, "body_temp_avg": 36.7},
+    "monthly": {"month_sleep_h": 9.2, "month_restless_h": 0.5}
   }'
 
 # 이력 조회

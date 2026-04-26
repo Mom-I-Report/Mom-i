@@ -1,0 +1,39 @@
+services:
+  db:
+    image: mariadb:10.11
+    container_name: momi_db
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: ./backend
+    container_name: momi_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: mysql+pymysql://${DB_USER}:${DB_PASSWORD}@db:3306/${DB_NAME}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  mariadb_data:

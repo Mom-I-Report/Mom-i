@@ -1,5 +1,9 @@
 # 맘아이 리포트 서버 구현 스펙
 
+> ⚠ **[DEPRECATED]** 이 문서는 2026-04-15 기준 초기 구현 스펙이며, 현재 코드와 다릅니다.  
+> 최신 상태는 [`research.md`](./research.md) 및 [`plan.md`](./plan.md)를 참조하세요.  
+> 주요 차이점: async 전환 없음 / breath·body_temp·monthly 필드 없음 / 4섹션(현재 5섹션) / gemini-1.5-flash(현재 2.5)
+
 > 브랜치: `feat/report-server`  
 > 스택: FastAPI + SQLAlchemy + MySQL + Google Gemini API  
 > 역할: 맘아이 서버로부터 주간 수면 데이터를 받아 AI 리포트를 생성·저장·리턴

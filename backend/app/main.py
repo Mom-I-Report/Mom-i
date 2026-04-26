@@ -1,11 +1,22 @@
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
+)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.interfaces.api.v1 import report_api, etf_api
+
+# 엔티티를 먼저 import해야 create_tables()가 테이블을 인식한다
+import app.domain.report.entity  # noqa
+
+from app.interfaces.api.v1 import report_api, admin_api
 from app.infrastructure.database.session import create_tables
 from app.infrastructure.scheduler import start_scheduler
 
 app = FastAPI(
-    title="M-Take 리포트 서버",
+    title="맘아이 리포트 서버",
     description="맘아이 앱 연동 영유아 주간 수면 AI 리포트 생성·보관·조회 서버",
     version="0.2.0",
 )
@@ -19,15 +30,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.on_event("startup")
 def on_startup():
     create_tables()
     start_scheduler()
 
-# ── 라우터 등록 ──
-app.include_router(report_api.router, prefix="/api/v1/report", tags=["리포트"])
-app.include_router(etf_api.router,    prefix="/api/v1/etf",    tags=["ETF 리밸런싱"])
 
-@app.get("/")
+# ── 라우터 등록 ──
+app.include_router(report_api.router, prefix="/api/v1/reports", tags=["리포트"])
+app.include_router(admin_api.router,  prefix="/admin",          tags=["관리자"])
+
+
+@app.get("/", tags=["시스템"])
 async def root():
-    return {"message": "M-Take 리포트 서버"}
+    return {"message": "맘아이 리포트 서버"}
+
+
+@app.get("/health", tags=["시스템"])
+async def health():
+    return {"status": "ok", "version": app.version}

@@ -1,787 +1,335 @@
-# ETF 리밸런싱 기능 구현 계획
+# 맘아이 리포트 서버 — 전체 개발 플랜
 
+> 최종 갱신: 2026-04-19  
 > 기준 브랜치: `feat/noh`  
-> 작성일: 2026-04-15  
-> 기존 아키텍처: FastAPI + SQLAlchemy + Clean Architecture (4레이어)  
-> **스펙 기준:** `report_server_spec.md` — 이 서버는 `Users` 테이블 없음, `ser_no`로 식별
+> 이전 plan.md(2026-04-15, ETF 구현 계획) → 현재 코드 기준 전면 재정립
 
 ---
 
-## 1. 목표
+## 1. 현재 서버 구조 한눈에 보기
 
-맘아이 백엔드에 **ETF 포트폴리오 리밸런싱** 기능을 추가한다.
-
-- 사용자별 ETF 목표 비중 관리
-- 현재 시장가 조회 후 실제 보유 비중과 목표 비중 간 괴리 계산
-- 리밸런싱 매수/매도 주문 플랜 생성
-- 리밸런싱 실행 이력 저장 및 **커서 기반 페이지네이션** 조회
+```
+맘아이 리포트 서버
+  ├── 리포트 시스템    POST /api/v1/report/generate
+  │                  GET  /api/v1/report/history/{ser_no}
+  │
+  └── ETF 리밸런싱   POST /api/v1/etf/portfolio/{ser_no}
+                     POST /api/v1/etf/rebalance/{ser_no}
+                     GET  /api/v1/etf/rebalance/history/{ser_no}
+```
 
 ---
 
-## 2. 왜 커서 기반 페이지네이션인가
+## 2. 구현 완료 현황
 
-### 오프셋 페이징의 문제
+### 2-1. 리포트 시스템 ✅
 
+| 파일 | 상태 | 내용 |
+|------|------|------|
+| `domain/report/entity.py` | ✅ | WeeklyData(breath·body_temp·monthly 컬럼 포함), GeneratedReport |
+| `domain/report/schemas.py` | ✅ | BreathData, BodyTempData, MonthlySummary, BreathSummary, BodyTempSummary, TrendData(5개 지표) 등 전체 |
+| `application/report/report_service.py` | ✅ | async, 캐시, DB쿼리 1회, 6단계 파이프라인 |
+| `infrastructure/database/repository/report_repo.py` | ✅ | save/get/delete + get_existing_report(캐시용) |
+| `infrastructure/llm/gemini_client.py` | ✅ | async, 재시도(지수백오프), 5섹션 검증, 토큰 로깅, thinking_budget=1024 |
+| `infrastructure/llm/prompts/system_prompt.md` | ✅ | 월령별 권장수면·호흡수·체온 기준 명시, 5섹션 출력 형식 |
+| `infrastructure/scheduler.py` | ✅ | 매주 월 10:00 KST rolling 삭제 |
+| `interfaces/api/v1/report_api.py` | ✅ | async 엔드포인트 2개 |
+
+**리포트 생성 파이프라인 (6 Steps):**
 ```
-# 오프셋 방식: LIMIT 10 OFFSET 20
-# → 새 리밸런싱이 생기면 페이지 경계가 밀려 항목이 중복되거나 누락됨
-# → 전체 COUNT 쿼리가 필요해 대용량에서 느림
+Step 1  원본 저장      Weekly_Data upsert (breath·body_temp·monthly 포함)
+Step 2  캐시 확인      기존 리포트 있으면 Gemini 재호출 없이 즉시 반환
+Step 3  이전 조회      get_recent_weekly_data(weeks=2) — DB 1회
+Step 4  집계           summary / daily / breath_summary / body_temp_summary / trend
+Step 5  AI 생성        await generate_insight() — 재시도·검증·로깅 포함
+Step 6  저장·반환      Generated_Reports upsert → GenerateReportResponse
 ```
 
-### 커서(입력값) 기반 페이징의 장점
-
+**EMTAKE 프로토콜 반영 완료:**
 ```
-# 커서 방식: WHERE rebalancing_id < :cursor ORDER BY rebalancing_id DESC LIMIT 10
-# → 커서(마지막으로 본 ID)를 기준으로 다음 페이지를 정확하게 잘라냄
-# → 실시간으로 데이터가 추가돼도 누락/중복 없음
-# → COUNT 불필요, 인덱스만으로 O(log n) 탐색
+CMD: SleepData  → sleep (7일치) + monthly (month_gs/month_pr)
+CMD: IndoorTemp → environment.temp_*
+CMD: dB         → environment.db_*
+CMD: Breath     → breath (breath_min/max/avg)   ← 신규 추가
+CMD: Temp       → body_temp (체온 상승)          ← 신규 추가
 ```
-
-**커서 설계 원칙:**
-- 커서 = 클라이언트가 마지막으로 받은 항목의 `rebalancing_id`
-- 첫 요청: `cursor` 파라미터 없음 → 최신 N건 반환
-- 이후 요청: 응답에서 받은 `next_cursor`를 `cursor`로 전달
-- `next_cursor == null` → 마지막 페이지
 
 ---
 
-## 3. 추가할 파일 목록
+### 2-2. ETF 리밸런싱 시스템 ✅
 
-기존 clean architecture 레이어 구조를 그대로 따른다.
-
-```
-backend/app/
-├── domain/etf/
-│   ├── __init__.py
-│   ├── entity.py          ← ORM 모델 (ETFPortfolio, ETFHolding, RebalancingHistory)
-│   └── schemas.py         ← Pydantic 요청/응답 스키마
-├── application/etf/
-│   ├── __init__.py
-│   └── rebalance_service.py   ← 리밸런싱 핵심 비즈니스 로직
-├── infrastructure/
-│   ├── database/repository/
-│   │   └── etf_repo.py    ← DB 접근 (커서 페이지네이션 포함)
-│   └── market/
-│       ├── __init__.py
-│       └── price_client.py    ← 시장가 조회 외부 API 클라이언트
-└── interfaces/api/v1/
-    └── etf_api.py         ← FastAPI 라우터
-```
-
-수정 파일:
-- `backend/app/main.py` — 새 라우터 등록
-- `backend/app/core/config.py` — MARKET_API_KEY 추가
-- `backend/requirements.txt` — httpx (이미 있음, 테스트용) → 런타임도 활용
+| 파일 | 상태 | 내용 |
+|------|------|------|
+| `domain/etf/entity.py` | ✅ | ETFPortfolio, ETFHolding, RebalancingHistory |
+| `domain/etf/schemas.py` | ✅ | CreatePortfolioRequest, RebalanceResponse, HistoryPageResponse 등 |
+| `infrastructure/database/repository/etf_repo.py` | ✅ | upsert_portfolio, cursor 페이지네이션 |
+| `infrastructure/market/price_client.py` | ✅ | 더미 가격 fallback, 실 API 연동 준비 완료 |
+| `application/etf/rebalance_service.py` | ✅ | drift 5% 임계값 BUY/SELL/HOLD 알고리즘 |
+| `interfaces/api/v1/etf_api.py` | ✅ | 포트폴리오 CRUD, 리밸런싱, 커서 페이지네이션 |
 
 ---
 
-## 4. 데이터베이스 스키마
+### 2-3. 공통 인프라 ✅
 
-### 4.1 `domain/etf/entity.py`
+| 항목 | 상태 | 내용 |
+|------|------|------|
+| `main.py` | ✅ | 두 라우터 등록, startup 훅 |
+| `core/config.py` | ✅ | GEMINI_API_KEY, DATABASE_URL, MARKET_API_* |
+| `backend/.env` | ✅ | GEMINI_API_KEY 입력 완료 |
+| `requirements.txt` | ✅ | 최신화 완료 |
+| `application/sleep_data/simulator_service.py` | ✅ | EMTAKE 전체 필드 더미 생성 |
+| `gemini-2.5-flash` | ✅ | 모델 교체 완료 |
 
+---
+
+## 3. 미완료 — 남은 작업
+
+### 🔴 즉시 필요 (서버 실행 전)
+
+#### [P0-1] DB 재생성
+새 컬럼(`breath_json`, `body_temp_json`, `monthly_json`)이 추가됐지만
+`create_tables()`는 기존 테이블을 ALTER 하지 않음.
+
+```bash
+# 개발 환경: SQLite 파일 삭제 후 재시작
+cd backend
+rm momi.db
+uvicorn app.main:app --reload
+```
+
+#### [P0-2] 서버 실행 검증
+```bash
+cd backend
+uvicorn app.main:app --reload --port 8000
+# → http://localhost:8000/docs 에서 Swagger UI 확인
+```
+
+#### [P0-3] 리포트 생성 E2E 테스트
+시뮬레이터로 실제 POST 호출 검증:
 ```python
-from sqlalchemy import (
-    Column, Integer, String, Float, Boolean,
-    DateTime, ForeignKey, Numeric, Text
-)
-from app.infrastructure.database.session import Base
-
-
-class ETFPortfolio(Base):
-    """사용자별 ETF 포트폴리오 (목표 비중 합산 = 100%)"""
-    __tablename__ = "ETF_Portfolios"
-
-    portfolio_id = Column(Integer, primary_key=True, autoincrement=True)
-    # ※ report_server_spec 기준: Users 테이블 없음 → ser_no(String)로 식별
-    ser_no       = Column(String(50), nullable=False, unique=True)
-    name         = Column(String(100), nullable=False)          # 예: "글로벌 분산 포트폴리오"
-    total_asset  = Column(Numeric(18, 2), nullable=False)       # 총 자산 (원화)
-    created_at   = Column(DateTime, nullable=False)
-    updated_at   = Column(DateTime, nullable=False)
-
-
-class ETFHolding(Base):
-    """포트폴리오 내 개별 ETF 보유 항목"""
-    __tablename__ = "ETF_Holdings"
-
-    holding_id    = Column(Integer, primary_key=True, autoincrement=True)
-    portfolio_id  = Column(Integer, ForeignKey("ETF_Portfolios.portfolio_id", ondelete="CASCADE"), nullable=False)
-    ticker        = Column(String(20), nullable=False)          # 예: "SPY", "QQQ", "069500"
-    name          = Column(String(100))                         # 예: "KODEX 200"
-    target_weight = Column(Float, nullable=False)               # 목표 비중 (0.0 ~ 1.0), 합산 1.0
-    current_price = Column(Numeric(18, 4))                      # 마지막 조회 시장가
-    quantity      = Column(Float, default=0.0)                  # 현재 보유 수량
-
-
-class RebalancingHistory(Base):
-    """리밸런싱 실행 이력 — 커서 페이지네이션 기준 키"""
-    __tablename__ = "Rebalancing_History"
-
-    rebalancing_id  = Column(Integer, primary_key=True, autoincrement=True)  # 커서 키
-    portfolio_id    = Column(Integer, ForeignKey("ETF_Portfolios.portfolio_id", ondelete="CASCADE"), nullable=False)
-    ser_no          = Column(String(50), nullable=False)         # Users FK 없음 → ser_no로 식별
-    summary         = Column(Text)          # JSON 직렬화된 주문 플랜 요약
-    total_buy_amount  = Column(Numeric(18, 2))
-    total_sell_amount = Column(Numeric(18, 2))
-    executed_at     = Column(DateTime, nullable=False)
-```
-
-> **커서 전략:** `rebalancing_id`는 AutoIncrement로 시간 순서를 보장한다.  
-> 최신순 조회 시 `WHERE rebalancing_id < :cursor ORDER BY rebalancing_id DESC LIMIT :limit`.
-
----
-
-## 5. Pydantic 스키마
-
-### 5.1 `domain/etf/schemas.py`
-
-```python
-from pydantic import BaseModel, field_validator
-from typing import List, Optional
-from decimal import Decimal
-from datetime import datetime
-
-
-# ── 요청 스키마 ──────────────────────────────────
-
-class ETFHoldingIn(BaseModel):
-    ticker: str
-    name: str
-    target_weight: float        # 0.0 ~ 1.0
-    quantity: float = 0.0
-
-    @field_validator("target_weight")
-    @classmethod
-    def weight_range(cls, v: float) -> float:
-        if not (0.0 < v <= 1.0):
-            raise ValueError("target_weight는 0 초과 1 이하여야 합니다")
-        return v
-
-
-class CreatePortfolioRequest(BaseModel):
-    name: str
-    total_asset: Decimal            # 총 자산 (원화)
-    holdings: List[ETFHoldingIn]
-
-    @field_validator("holdings")
-    @classmethod
-    def weights_sum_to_one(cls, holdings: List[ETFHoldingIn]) -> List[ETFHoldingIn]:
-        total = sum(h.target_weight for h in holdings)
-        if abs(total - 1.0) > 0.001:
-            raise ValueError(f"목표 비중 합산이 1.0이어야 합니다 (현재: {total:.4f})")
-        return holdings
-
-
-class RebalanceRequest(BaseModel):
-    """리밸런싱 실행 요청 — 최신 시장가를 조회해 주문 플랜을 계산"""
-    dry_run: bool = True            # True: 계획만 반환, False: 이력 DB 저장
-
-
-# ── 응답 스키마 ──────────────────────────────────
-
-class OrderItem(BaseModel):
-    ticker: str
-    name: str
-    action: str                     # "BUY" | "SELL" | "HOLD"
-    current_weight: float           # 현재 비중
-    target_weight: float            # 목표 비중
-    drift: float                    # 괴리율 (current - target)
-    amount: Decimal                 # 매수/매도 금액 (원화)
-    quantity_change: float          # 매수/매도 수량
-
-
-class RebalanceResponse(BaseModel):
-    portfolio_id: int
-    total_asset: Decimal
-    orders: List[OrderItem]
-    total_buy_amount: Decimal
-    total_sell_amount: Decimal
-    executed_at: datetime
-    dry_run: bool
-
-
-class HistoryItem(BaseModel):
-    rebalancing_id: int             # 커서 값
-    total_buy_amount: Decimal
-    total_sell_amount: Decimal
-    executed_at: datetime
-    summary: str                    # 주문 플랜 JSON 요약
-
-
-class HistoryPageResponse(BaseModel):
-    """커서 기반 페이지 응답"""
-    items: List[HistoryItem]
-    next_cursor: Optional[int]      # None이면 마지막 페이지
-    has_next: bool
-```
-
----
-
-## 6. Repository — 커서 페이지네이션 구현
-
-### 6.1 `infrastructure/database/repository/etf_repo.py`
-
-```python
-from sqlalchemy.orm import Session
-from sqlalchemy import desc
-from datetime import datetime
-from decimal import Decimal
-from typing import List, Optional, Tuple
-import json
-
-from app.domain.etf.entity import ETFPortfolio, ETFHolding, RebalancingHistory
-
-
-# ── Portfolio ────────────────────────────────────
-
-def get_portfolio_by_ser_no(db: Session, ser_no: str) -> Optional[ETFPortfolio]:
-    return db.query(ETFPortfolio).filter(ETFPortfolio.ser_no == ser_no).first()
-
-
-def upsert_portfolio(
-    db: Session,
-    ser_no: str,
-    name: str,
-    total_asset: Decimal,
-    holdings: list,
-) -> ETFPortfolio:
-    portfolio = get_portfolio_by_ser_no(db, ser_no)
-    now = datetime.now()
-
-    if portfolio:
-        portfolio.name = name
-        portfolio.total_asset = total_asset
-        portfolio.updated_at = now
-        # 기존 홀딩 전체 교체
-        db.query(ETFHolding).filter(ETFHolding.portfolio_id == portfolio.portfolio_id).delete()
-    else:
-        portfolio = ETFPortfolio(
-            ser_no=ser_no, name=name,
-            total_asset=total_asset,
-            created_at=now, updated_at=now,
-        )
-        db.add(portfolio)
-        db.flush()  # portfolio_id 확보
-
-    for h in holdings:
-        db.add(ETFHolding(
-            portfolio_id=portfolio.portfolio_id,
-            ticker=h.ticker,
-            name=h.name,
-            target_weight=h.target_weight,
-            quantity=h.quantity,
-        ))
-
-    db.commit()
-    db.refresh(portfolio)
-    return portfolio
-
-
-def get_holdings(db: Session, portfolio_id: int) -> List[ETFHolding]:
-    return db.query(ETFHolding).filter(ETFHolding.portfolio_id == portfolio_id).all()
-
-
-def update_holding_price(db: Session, holding_id: int, price: Decimal):
-    db.query(ETFHolding).filter(ETFHolding.holding_id == holding_id).update(
-        {"current_price": price}
-    )
-
-
-# ── RebalancingHistory (커서 페이지네이션) ──────────
-
-def save_rebalancing_history(
-    db: Session,
-    portfolio_id: int,
-    ser_no: str,
-    orders: list,
-    total_buy: Decimal,
-    total_sell: Decimal,
-) -> RebalancingHistory:
-    summary = json.dumps(
-        [{"ticker": o["ticker"], "action": o["action"], "amount": str(o["amount"])}
-         for o in orders],
-        ensure_ascii=False,
-    )
-    record = RebalancingHistory(
-        portfolio_id=portfolio_id,
-        ser_no=ser_no,
-        summary=summary,
-        total_buy_amount=total_buy,
-        total_sell_amount=total_sell,
-        executed_at=datetime.now(),
-    )
-    db.add(record)
-    db.commit()
-    db.refresh(record)
-    return record
-
-
-def get_rebalancing_history_page(
-    db: Session,
-    ser_no: str,
-    cursor: Optional[int],  # 마지막으로 받은 rebalancing_id (없으면 첫 페이지)
-    limit: int = 10,
-) -> Tuple[List[RebalancingHistory], Optional[int]]:
-    """
-    커서 기반 페이지네이션.
-
-    cursor가 없으면 → 최신 limit+1건 조회
-    cursor가 있으면 → rebalancing_id < cursor 조건으로 최신 limit+1건 조회
-
-    limit+1건을 조회해 next_cursor 유무를 판단한다.
-    실제 반환은 limit건.
-    """
-    query = (
-        db.query(RebalancingHistory)
-        .filter(RebalancingHistory.ser_no == ser_no)
-    )
-
-    if cursor is not None:
-        # 커서보다 작은 ID만 (= 커서 항목보다 오래된 데이터)
-        query = query.filter(RebalancingHistory.rebalancing_id < cursor)
-
-    rows = (
-        query
-        .order_by(desc(RebalancingHistory.rebalancing_id))
-        .limit(limit + 1)           # 다음 페이지 존재 여부 확인용 +1
-        .all()
-    )
-
-    has_next = len(rows) > limit
-    items = rows[:limit]            # 실제 반환 항목
-    next_cursor = items[-1].rebalancing_id if has_next else None
-
-    return items, next_cursor
-```
-
----
-
-## 7. 시장가 클라이언트
-
-### 7.1 `infrastructure/market/price_client.py`
-
-```python
+from app.application.sleep_data.simulator_service import make_multi_week_dummy
 import httpx
-from typing import Dict
-from app.core.config import settings
 
+weeks = make_multi_week_dummy(num_weeks=3)
+for w in weeks:
+    r = httpx.post("http://localhost:8000/api/v1/report/generate", json=w)
+    print(r.status_code, r.json().get("week_label"))
 
-class PriceClient:
-    """
-    외부 시장 데이터 API 클라이언트.
-    실제 연동 전까지는 더미 가격을 반환하는 fallback 포함.
-    """
-
-    DUMMY_PRICES: Dict[str, float] = {
-        "SPY":    520.50,
-        "QQQ":    430.20,
-        "TLT":     92.10,
-        "GLD":    220.80,
-        "069500": 28450.0,   # KODEX 200
-        "360750": 15320.0,   # TIGER 미국S&P500
-    }
-
-    def __init__(self):
-        self._base_url = getattr(settings, "MARKET_API_URL", "")
-        self._api_key  = getattr(settings, "MARKET_API_KEY", "")
-
-    def fetch_prices(self, tickers: list[str]) -> Dict[str, float]:
-        """
-        tickers 리스트의 현재 시장가를 반환.
-        MARKET_API_KEY가 없으면 더미 데이터로 동작.
-        """
-        if not self._api_key:
-            return {t: self.DUMMY_PRICES.get(t, 100.0) for t in tickers}
-
-        with httpx.Client(timeout=10.0) as client:
-            resp = client.get(
-                f"{self._base_url}/prices",
-                params={"tickers": ",".join(tickers)},
-                headers={"Authorization": f"Bearer {self._api_key}"},
-            )
-            resp.raise_for_status()
-            return resp.json()   # {"SPY": 520.5, ...}
-
-
-price_client = PriceClient()
+# 3번째 응답에 trend 블록 포함 여부 확인
+# 동일 주차 재전송 시 캐시 히트 로그 확인
 ```
 
 ---
 
-## 8. 비즈니스 로직 — 리밸런싱 서비스
+### 🟡 단기 (이번 스프린트)
 
-### 8.1 `application/etf/rebalance_service.py`
+#### [P1-1] ETF API async 전환
+리포트 API는 async 전환 완료. ETF API는 아직 sync.
+일관성 + 향후 async DB 전환 대비.
 
 ```python
-from sqlalchemy.orm import Session
-from decimal import Decimal, ROUND_HALF_UP
-from typing import List, Optional
-from datetime import datetime
+# etf_api.py
+# def create_portfolio → async def create_portfolio
+# def run_rebalance    → async def run_rebalance
+# def get_history      → async def get_history
+```
 
-from app.infrastructure.database.repository import etf_repo
-from app.infrastructure.market.price_client import price_client
-from app.domain.etf.schemas import (
-    CreatePortfolioRequest, RebalanceResponse, OrderItem,
-    HistoryPageResponse, HistoryItem,
+#### [P1-2] 로깅 설정 체계화
+현재 각 파일에서 `logging.getLogger(__name__)` 사용 중이지만
+`main.py`에 전역 로그 포맷 설정이 없음.
+
+```python
+# main.py에 추가
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
 )
-
-
-_DRIFT_THRESHOLD = 0.05     # 5% 이상 괴리 시 주문 생성
-
-
-def create_or_update_portfolio(db: Session, ser_no: str, req: CreatePortfolioRequest):
-    """포트폴리오 생성 또는 전체 교체"""
-    return etf_repo.upsert_portfolio(
-        db, ser_no, req.name, req.total_asset, req.holdings
-    )
-
-
-def calculate_rebalancing(
-    db: Session,
-    ser_no: str,
-    dry_run: bool = True,
-) -> RebalanceResponse:
-    """
-    핵심 리밸런싱 알고리즘:
-    1. 포트폴리오 + 보유 ETF 조회
-    2. 현재 시장가 fetch
-    3. 현재 보유 비중 계산
-    4. 목표 비중과 괴리(drift) 계산
-    5. 매수/매도 주문 금액 산출
-    6. dry_run=False 이면 이력 DB 저장
-    """
-    portfolio = etf_repo.get_portfolio_by_ser_no(db, ser_no)
-    if not portfolio:
-        raise ValueError(f"포트폴리오가 없습니다. 먼저 포트폴리오를 생성하세요. (ser_no={ser_no})")
-
-    holdings = etf_repo.get_holdings(db, portfolio.portfolio_id)
-    if not holdings:
-        raise ValueError("보유 ETF가 없습니다.")
-
-    tickers = [h.ticker for h in holdings]
-
-    # ── Step 1: 시장가 조회 ──
-    prices = price_client.fetch_prices(tickers)
-
-    # ── Step 2: 현재 포트폴리오 총 평가액 계산 ──
-    total_asset = Decimal(str(portfolio.total_asset))
-    holding_values: dict[str, Decimal] = {}
-    for h in holdings:
-        price = Decimal(str(prices.get(h.ticker, 0)))
-        holding_values[h.ticker] = price * Decimal(str(h.quantity))
-
-    current_total = sum(holding_values.values()) or total_asset
-
-    # ── Step 3: 괴리 및 주문 플랜 계산 ──
-    orders: List[OrderItem] = []
-    total_buy  = Decimal("0")
-    total_sell = Decimal("0")
-
-    for h in holdings:
-        price = Decimal(str(prices.get(h.ticker, 0)))
-        current_value  = holding_values[h.ticker]
-        current_weight = float(current_value / current_total) if current_total else 0.0
-        target_weight  = h.target_weight
-        drift          = round(current_weight - target_weight, 4)
-
-        # 목표 금액
-        target_value  = total_asset * Decimal(str(target_weight))
-        delta_amount  = target_value - current_value    # 양수: 매수, 음수: 매도
-
-        if abs(drift) < _DRIFT_THRESHOLD:
-            action = "HOLD"
-            delta_amount = Decimal("0")
-        elif delta_amount > 0:
-            action = "BUY"
-            total_buy += delta_amount
-        else:
-            action = "SELL"
-            total_sell += abs(delta_amount)
-
-        # 수량 변화 (가격이 0이면 0)
-        qty_change = float(delta_amount / price) if price else 0.0
-
-        orders.append(OrderItem(
-            ticker=h.ticker,
-            name=h.name or h.ticker,
-            action=action,
-            current_weight=round(current_weight, 4),
-            target_weight=round(target_weight, 4),
-            drift=drift,
-            amount=delta_amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
-            quantity_change=round(qty_change, 4),
-        ))
-
-    # ── Step 4: 이력 저장 (dry_run=False 일 때만) ──
-    if not dry_run:
-        etf_repo.save_rebalancing_history(
-            db=db,
-            portfolio_id=portfolio.portfolio_id,
-            ser_no=ser_no,
-            orders=[o.model_dump() for o in orders],
-            total_buy=total_buy,
-            total_sell=total_sell,
-        )
-
-    return RebalanceResponse(
-        portfolio_id=portfolio.portfolio_id,
-        total_asset=total_asset,
-        orders=orders,
-        total_buy_amount=total_buy.quantize(Decimal("0.01")),
-        total_sell_amount=total_sell.quantize(Decimal("0.01")),
-        executed_at=datetime.now(),
-        dry_run=dry_run,
-    )
-
-
-def get_history_page(
-    db: Session,
-    ser_no: str,
-    cursor: Optional[int],
-    limit: int,
-) -> HistoryPageResponse:
-    """커서 기반 페이지네이션으로 리밸런싱 이력 반환"""
-    if limit < 1 or limit > 100:
-        raise ValueError("limit은 1 이상 100 이하여야 합니다")
-
-    rows, next_cursor = etf_repo.get_rebalancing_history_page(db, ser_no, cursor, limit)
-
-    items = [
-        HistoryItem(
-            rebalancing_id=r.rebalancing_id,
-            total_buy_amount=r.total_buy_amount,
-            total_sell_amount=r.total_sell_amount,
-            executed_at=r.executed_at,
-            summary=r.summary or "",
-        )
-        for r in rows
-    ]
-
-    return HistoryPageResponse(
-        items=items,
-        next_cursor=next_cursor,
-        has_next=next_cursor is not None,
-    )
 ```
 
----
-
-## 9. API 라우터
-
-### 9.1 `interfaces/api/v1/etf_api.py`
+#### [P1-3] 헬스체크 엔드포인트
+배포 환경에서 서버 상태 모니터링용.
 
 ```python
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from typing import Optional
-
-from app.infrastructure.database.session import get_db
-from app.domain.etf.schemas import (
-    CreatePortfolioRequest, RebalanceResponse,
-    RebalanceRequest, HistoryPageResponse,
-)
-from app.application.etf import rebalance_service
-
-router = APIRouter()
-
-
-@router.post("/portfolio/{ser_no}", summary="포트폴리오 생성/갱신")
-def create_portfolio(
-    ser_no: str,
-    req: CreatePortfolioRequest,
-    db: Session = Depends(get_db),
-):
-    """
-    사용자 ETF 포트폴리오를 생성하거나 전체 교체합니다.
-    - holdings의 target_weight 합산이 1.0이어야 합니다.
-    - ser_no: 카메라 시리얼 번호 (Users 테이블 없음, ser_no로 식별)
-    """
-    try:
-        portfolio = rebalance_service.create_or_update_portfolio(db, ser_no, req)
-        return {"status": "success", "portfolio_id": portfolio.portfolio_id}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.post("/rebalance/{ser_no}", response_model=RebalanceResponse, summary="리밸런싱 실행")
-def run_rebalance(
-    ser_no: str,
-    req: RebalanceRequest,
-    db: Session = Depends(get_db),
-):
-    """
-    현재 시장가를 조회하여 리밸런싱 주문 플랜을 계산합니다.
-
-    - `dry_run=true` (기본): 계획만 반환, DB 저장 없음
-    - `dry_run=false`: 이력 저장 후 반환
-    - 괴리율 5% 미만 ETF는 HOLD 처리
-    """
-    try:
-        return rebalance_service.calculate_rebalancing(db, ser_no, req.dry_run)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-
-@router.get(
-    "/rebalance/history/{ser_no}",
-    response_model=HistoryPageResponse,
-    summary="리밸런싱 이력 조회 (커서 페이지네이션)",
-)
-def get_history(
-    ser_no: str,
-    cursor: Optional[int] = Query(
-        default=None,
-        description="마지막으로 받은 rebalancing_id. 없으면 첫 페이지.",
-    ),
-    limit: int = Query(
-        default=10,
-        ge=1,
-        le=100,
-        description="페이지당 항목 수 (1~100)",
-    ),
-    db: Session = Depends(get_db),
-):
-    """
-    커서 기반 페이지네이션으로 리밸런싱 이력을 최신순으로 반환합니다.
-
-    ### 클라이언트 사용법
-    1. 첫 요청: `GET /api/v1/etf/rebalance/history/MT-00123?limit=10`
-    2. 이후 요청: 응답의 `next_cursor` 값을 `cursor`로 전달
-       → `GET /api/v1/etf/rebalance/history/MT-00123?cursor=42&limit=10`
-    3. `has_next=false` 이면 마지막 페이지
-    """
-    try:
-        return rebalance_service.get_history_page(db, ser_no, cursor, limit)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+# main.py 또는 별도 health_api.py
+@app.get("/health")
+async def health():
+    return {"status": "ok", "version": app.version}
 ```
+
+#### [P1-4] `.env.example` 최신화
+현재 `.env.example`이 구버전이었으나 최신화 완료.
+신규 팀원 온보딩용으로 현행화 필요.
 
 ---
 
-## 10. main.py 수정
+### 🟢 중기 (다음 스프린트)
 
-기존 `backend/app/main.py`에 라우터 한 줄 추가:
+#### [P2-1] pytest 테스트 코드 작성
+현재 테스트 파일 없음. 최소한 아래 3개 커버 필요:
+
+```
+tests/
+├── test_report_service.py
+│     ├── test_generate_report_first_week()   → trend=None 확인
+│     ├── test_generate_report_cache_hit()    → Gemini 재호출 없는지 확인
+│     └── test_generate_report_3weeks()       → trend 블록 정상 포함 확인
+├── test_breath_analysis.py
+│     ├── test_normal_breath_range()
+│     └── test_abnormal_breath_range()
+└── test_etf_rebalance.py
+      ├── test_drift_below_threshold()        → HOLD 처리 확인
+      └── test_cursor_pagination()
+```
+
+#### [P2-2] Alembic 마이그레이션 적용
+현재 `create_tables()` 런타임 생성 방식.
+운영 전 Alembic으로 전환해 스키마 버전 관리 필요.
+
+```bash
+cd backend
+alembic init alembic
+alembic revision --autogenerate -m "add breath body_temp monthly columns"
+alembic upgrade head
+```
+
+#### [P2-3] 토큰 사용량 DB 저장
+현재 로그로만 기록. 구독자별 비용 추적 및 이상 감지를 위해 DB 저장 권장.
 
 ```python
-# 기존 코드
-from app.interfaces.api.v1 import report_api, sleep_data_api
-
-# 추가
-from app.interfaces.api.v1 import etf_api
-
-# ...기존 include_router 아래에 추가
-app.include_router(etf_api.router, prefix="/api/v1/etf", tags=["ETF 리밸런싱"])
+# 신규 테이블 또는 Generated_Reports에 컬럼 추가
+token_input:  int   # 입력 토큰
+token_output: int   # 출력 토큰
 ```
 
 ---
 
-## 11. config.py 수정
+### 🔵 장기 / 운영 전환
+
+#### [P3-1] 인증/인가
+현재 모든 엔드포인트 인증 없음.
+`POST /generate`는 맘아이 서버만 호출 가능해야 함.
 
 ```python
-class Settings(BaseSettings):
-    PROJECT_NAME: str = "M-Take Sleep Analysis"
-    GEMINI_API_KEY: str = ""
-    DATABASE_URL: str = "sqlite:///./m_take.db"
+# 방식 1: API 키 헤더 검증
+# X-API-Key: {shared_secret}
 
-    # ETF 시장 데이터 API (없으면 더미 가격 사용)
-    MARKET_API_URL: str = ""
-    MARKET_API_KEY: str = ""
-
-    class Config:
-        env_file = ".env"
+# 방식 2: JWT (맘아이 서버에서 발급)
 ```
 
-`.env.example`에도 추가:
+#### [P3-2] CORS 도메인 제한
+```python
+# 현재 (위험)
+allow_origins=["*"]
+
+# 운영
+allow_origins=["https://app.momi.kr", "https://api.momi.kr"]
 ```
-MARKET_API_URL="https://api.your-market-data.com"
-MARKET_API_KEY="your_market_api_key_here"
+
+#### [P3-3] async SQLAlchemy 전환
+MySQL 운영 시 sync SQLAlchemy가 이벤트 루프 blocking 발생.
+`sqlalchemy.ext.asyncio` + `AsyncSession`으로 마이그레이션 필요.
+
+#### [P3-4] PDF 출력 연결
+`infrastructure/pdf/generator.py` 스켈레톤 존재.
+현재 어떤 라우터에도 연결 안 됨.
+앱 팀이 JSON 렌더링 vs PDF 다운로드 방향 결정 후 연결.
+
+#### [P3-5] 시장 데이터 API 실제 연동
+`price_client.py`가 `MARKET_API_KEY` 없으면 더미 가격 반환 중.
+실제 금융 데이터 API(한국투자증권 API, Alpha Vantage 등) 연동 필요.
+
+---
+
+## 4. 전체 우선순위 요약
+
+```
+🔴 P0 — 지금 당장 (서버 실행 전)
+  P0-1  DB 재생성 (momi.db 삭제 후 재시작)
+  P0-2  uvicorn 실행 + /docs Swagger 확인
+  P0-3  시뮬레이터로 리포트 생성 E2E 테스트
+
+🟡 P1 — 이번 스프린트
+  P1-1  ETF API async 전환
+  P1-2  main.py 로깅 포맷 설정
+  P1-3  /health 엔드포인트 추가
+  P1-4  .env.example 최신화
+
+🟢 P2 — 다음 스프린트
+  P2-1  pytest 테스트 작성 (report + breath + etf)
+  P2-2  Alembic 마이그레이션 전환
+  P2-3  토큰 사용량 DB 저장
+
+🔵 P3 — 운영 전환
+  P3-1  인증/인가 (API 키 or JWT)
+  P3-2  CORS 도메인 제한
+  P3-3  async SQLAlchemy 전환
+  P3-4  PDF 라우터 연결
+  P3-5  시장 데이터 실 API 연동
 ```
 
 ---
 
-## 12. 완성된 API 목록
+## 5. 역할별 담당 매핑
 
-| 메서드 | 경로 | 설명 |
-|--------|------|------|
-| `POST` | `/api/v1/etf/portfolio/{ser_no}` | 포트폴리오 생성/교체 |
-| `POST` | `/api/v1/etf/rebalance/{ser_no}` | 리밸런싱 플랜 계산 및 실행 |
-| `GET` | `/api/v1/etf/rebalance/history/{ser_no}` | 이력 조회 (커서 페이지네이션) |
-
----
-
-## 13. 커서 페이지네이션 동작 예시
-
-**첫 페이지 요청:**
-```http
-GET /api/v1/etf/rebalance/history/MT-00123?limit=3
-```
-```json
-{
-  "items": [
-    {"rebalancing_id": 50, "total_buy_amount": "150000.00", "executed_at": "2026-04-15T09:00:00"},
-    {"rebalancing_id": 48, "total_buy_amount": "80000.00",  "executed_at": "2026-04-08T09:00:00"},
-    {"rebalancing_id": 45, "total_buy_amount": "200000.00", "executed_at": "2026-04-01T09:00:00"}
-  ],
-  "next_cursor": 45,
-  "has_next": true
-}
-```
-
-**다음 페이지 요청** (`next_cursor` 사용):
-```http
-GET /api/v1/etf/rebalance/history/MT-00123?cursor=45&limit=3
-```
-```json
-{
-  "items": [
-    {"rebalancing_id": 40, ...},
-    {"rebalancing_id": 38, ...}
-  ],
-  "next_cursor": null,
-  "has_next": false
-}
-```
+| 역할 | 담당 작업 |
+|------|----------|
+| **AI 리포트 (D)** | P0-3, P1-3, P2-1(report·breath 테스트), P2-3, Gemini 프롬프트 고도화 |
+| **도메인 지식** | system_prompt.md 섹션 기준값 검수, 월령별 권장 기준 업데이트 |
+| **백엔드 공통** | P0-1, P0-2, P1-1, P1-2, P1-4, P2-2, P3-1, P3-2, P3-3 |
+| **ETF** | P2-1(etf 테스트), P3-5 |
+| **인프라/배포** | P3-1, P3-2, P3-3 |
 
 ---
 
-## 14. 구현 순서 (추천)
+## 6. API 전체 목록 (현재 구현 기준)
 
-```
-1단계 — 데이터 레이어
-  [ ] domain/etf/entity.py 작성
-  [ ] domain/etf/schemas.py 작성
-  [ ] infrastructure/database/repository/etf_repo.py 작성
-      → 커서 페이지네이션 get_rebalancing_history_page() 우선 구현
-
-2단계 — 인프라 연동
-  [ ] infrastructure/market/price_client.py 작성
-  [ ] core/config.py에 MARKET_API_URL, MARKET_API_KEY 추가
-
-3단계 — 비즈니스 로직
-  [ ] application/etf/rebalance_service.py 작성
-      → create_or_update_portfolio()
-      → calculate_rebalancing()
-      → get_history_page()
-
-4단계 — API 레이어
-  [ ] interfaces/api/v1/etf_api.py 작성
-  [ ] main.py에 etf_api.router 등록
-
-5단계 — 검증
-  [ ] uvicorn 실행 후 /docs에서 Swagger UI 확인
-  [ ] 포트폴리오 생성 → 리밸런싱 dry_run → 이력 저장 → 커서 페이지네이션 순서로 수동 테스트
-  [ ] 더미 데이터로 커서 경계값 테스트 (마지막 페이지 has_next=false 확인)
-```
+| 메서드 | 경로 | 호출자 | 상태 |
+|--------|------|--------|------|
+| `POST` | `/api/v1/report/generate` | 맘아이 서버 | ✅ async + 캐시 + 재시도 |
+| `GET` | `/api/v1/report/history/{ser_no}` | 맘아이 앱 | ✅ async |
+| `POST` | `/api/v1/etf/portfolio/{ser_no}` | 맘아이 서버 | ✅ (sync) |
+| `POST` | `/api/v1/etf/rebalance/{ser_no}` | 맘아이 서버 | ✅ (sync) |
+| `GET` | `/api/v1/etf/rebalance/history/{ser_no}` | 맘아이 앱 | ✅ (sync) |
+| `GET` | `/` | 모니터링 | ✅ |
+| `GET` | `/health` | 모니터링 | ❌ 미구현 |
 
 ---
 
-## 15. 설계 결정 사항 및 트레이드오프
+## 7. 데이터베이스 테이블 전체 목록
 
-| 결정 | 이유 |
-|------|------|
-| 커서 키를 `rebalancing_id`(AutoIncrement)로 선택 | 단조 증가 보장, 인덱스 탐색 O(log n), 시간 역순 정렬과 궁합이 좋음 |
-| `limit+1` 조회로 has_next 판단 | COUNT 쿼리 없이 다음 페이지 존재 여부 확인 |
-| 괴리 임계값 5% 하드코딩 | 추후 포트폴리오 테이블에 `drift_threshold` 컬럼 추가로 사용자화 가능 |
-| 시장가 클라이언트를 싱글턴으로 분리 | 실제 API 키 연동 전 더미로 전체 로직 테스트 가능 |
-| `dry_run=True` 기본값 | 실수로 이력이 쌓이는 것 방지, 계획 검토 후 `dry_run=false`로 확정 |
-| `upsert_portfolio`에서 기존 홀딩 전체 삭제 후 재삽입 | 부분 업데이트 복잡도 제거, 목표 비중 합산 검증을 Pydantic에서 일괄 처리 |
+| 테이블 | 역할 | 보존 기간 |
+|--------|------|----------|
+| `Weekly_Data` | 주간 원본(수면·환경·호흡·체온·월간) | 3주 rolling 삭제 |
+| `Generated_Reports` | AI 생성 리포트 전체 | 3주 rolling 삭제 |
+| `ETF_Portfolios` | 사용자 포트폴리오 | 무기한 |
+| `ETF_Holdings` | 포트폴리오 내 ETF 보유 | 무기한 (포트폴리오 교체 시 재삽입) |
+| `Rebalancing_History` | 리밸런싱 이력 (커서 페이지네이션) | 무기한 |
+
+---
+
+## 8. 개발 환경 빠른 시작
+
+```bash
+# 1. 의존성 설치
+cd backend
+pip install -r requirements.txt
+
+# 2. .env 확인 (GEMINI_API_KEY 입력 여부)
+cat .env
+
+# 3. DB 초기화 (기존 DB가 있으면 삭제 필수)
+rm -f momi.db
+
+# 4. 서버 실행
+uvicorn app.main:app --reload --port 8000
+
+# 5. Swagger UI 확인
+# http://localhost:8000/docs
+
+# 6. 리포트 생성 테스트 (Python 콘솔)
+# from app.application.sleep_data.simulator_service import make_dummy_week
+# import httpx
+# r = httpx.post("http://localhost:8000/api/v1/report/generate", json=make_dummy_week())
+# print(r.json())
+```
