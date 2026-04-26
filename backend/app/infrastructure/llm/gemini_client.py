@@ -1,5 +1,5 @@
 """
-gemini_client.py — Gemini 2.5 Flash 비동기 클라이언트
+gemini_client.py — Gemini 3 Flash 비동기 클라이언트
 
 구현된 기능:
   1. async  — generate_content_async() 로 비동기 호출 (Gemini 대기 3~8초 non-blocking)
@@ -22,11 +22,27 @@ logger = logging.getLogger(__name__)
 
 genai.configure(api_key=settings.GEMINI_API_KEY)
 
-_PROMPT_PATH   = Path(__file__).parent / "prompts" / "system_prompt.md"
-_SYSTEM_PROMPT = _PROMPT_PATH.read_text(encoding="utf-8")
+# ── 프롬프트 파일 경로 ────────────────────────────────────────────────────────
+_PROMPTS_DIR = Path(__file__).parent / "prompts"
+
+_SYSTEM_FILES = [
+    "system.md",        # 역할, HARD RULES, STYLE
+    "knowledge.md",     # 판단 기준 (수면/호흡/체온/수면법/원더윅스)
+    "age_policy.md",    # 월령별 수면법 제한
+    "reasoning.md",     # 추론 규칙
+]
+
+_SYSTEM_PROMPT = (
+    "\n\n---\n\n".join(
+        (_PROMPTS_DIR / f).read_text(encoding="utf-8") for f in _SYSTEM_FILES
+    )
+    + "\n\n---\n\n"
+    + (_PROMPTS_DIR / "output_format.md").read_text(encoding="utf-8")
+)
+_INPUT_TEMPLATE = (_PROMPTS_DIR / "input_template.md").read_text(encoding="utf-8")
 
 _model = genai.GenerativeModel(
-    model_name="gemini-2.5-flash",
+    model_name="gemini-3-flash-preview",
     system_instruction=_SYSTEM_PROMPT,
 )
 
@@ -36,7 +52,7 @@ _model = genai.GenerativeModel(
 _REQUIRED_FIELDS = ["ai_comment", "sleep_guide", "age_kick"]
 
 # sleep_guide 필수 하위 필드
-_SLEEP_GUIDE_FIELDS = ["method_name", "title", "reason", "steps"]
+_SLEEP_GUIDE_FIELDS = ["method_name", "title", "reason", "steps", "kick_action"]
 
 # age_kick 필수 하위 필드
 _AGE_KICK_FIELDS = ["title", "text", "is_wonder_weeks"]
@@ -176,45 +192,46 @@ async def generate_insight(ctx: dict) -> dict:
 
 
 def _build_prompt(ctx: dict) -> str:
-    """AI 컨텍스트 dict를 Gemini 사용자 프롬프트 문자열로 변환한다."""
+    """
+    4_INPUT.md.txt 템플릿을 기반으로 변수를 치환한 뒤
+    상세 데이터 블록(환경·호흡·체온·일별·트렌드)을 추가해 최종 user prompt를 반환한다.
+    """
     tw = ctx["this_week"]
 
-    day_lines = "\n".join(
-        f"  {d['day']}: 수면 {d['sleep_h']}h / 뒤척임 {d['restless_min']}분"
-        for d in ctx.get("daily", [])
+    # ── 4_INPUT 템플릿 변수 치환 ─────────────────────────────────────────────
+    prompt = (
+        _INPUT_TEMPLATE
+        .replace("{{age_month}}",       f"{ctx['baby_age_months']}개월")
+        .replace("{{avg_sleep}}",       f"{tw['avg_sleep_h']}시간")
+        .replace("{{wake_count}}",      f"{tw['cry_count']}회")
+        .replace("{{temperature}}",     f"평균 {tw['temp_avg']}°C")
+        .replace("{{pattern_summary}}", ctx.get("pattern_summary", ""))
     )
 
+    # ── 상세 데이터 블록 ─────────────────────────────────────────────────────
     breath_status = (
         f"정상 범위 내 ({tw['breath_normal_range']})"
         if tw["breath_is_normal"]
         else f"⚠ 정상 범위 벗어남 (정상: {tw['breath_normal_range']})"
     )
-
     temp_extra = {
         "정상":      "",
         "미열 주의": " → 수면 환경 온도·보온 상태 확인 권장",
         "발열 의심": " → 소아과 상담 권장",
     }.get(tw["body_temp_status"], "")
 
-    prompt = f"""
-생후 {ctx['baby_age_months']}개월 아기의 {ctx['week_label']} 수면 데이터입니다.
+    day_lines = "\n".join(
+        f"  {d['day']}: 수면 {d['sleep_h']}h / 뒤척임 {d['restless_min']}분"
+        for d in ctx.get("daily", [])
+    )
 
-[주간 수면 요약]
-- 이번 주 평균 수면: {tw['avg_sleep_h']}시간 / 이번 주 평균 뒤척임: {tw['avg_restless_min']}분
-- 월간 평균 수면: {tw['month_sleep_h']}시간 / 월간 평균 뒤척임: {tw['month_restless_h']}시간
-- 울음: {tw['cry_count']}회 / 카메라 이탈: {tw['leave_count']}회
+    prompt += f"""
 
-[실내 환경]
-- 온도: 평균 {tw['temp_avg']}°C (최고 {tw['temp_max']}° / 최저 {tw['temp_min']}°)
-- 소음: 평균 {tw['db_avg']}dB / 최대 {tw['db_max']}dB
-
-[호흡수 분석]
-- 수면 중 평균 호흡수: {tw['breath_avg']}회/분 (최소 {tw['breath_min']} / 최대 {tw['breath_max']})
-- 판정: {breath_status}
-
-[체온 분석]
-- 수면 중 평균 체온: {tw['body_temp_avg']}°C / 최고 {tw['body_temp_max']}°C
-- 상태: {tw['body_temp_status']}{temp_extra}
+[상세 데이터]
+주간: 뒤척임 {tw['avg_restless_min']}분 / 월간 평균 수면 {tw['month_sleep_h']}h
+환경: 온도 {tw['temp_avg']}°C (최고 {tw['temp_max']} / 최저 {tw['temp_min']}) / 소음 평균 {tw['db_avg']}dB 최대 {tw['db_max']}dB
+호흡: 평균 {tw['breath_avg']}회/분 (최소 {tw['breath_min']} / 최대 {tw['breath_max']}) — {breath_status}
+체온: 평균 {tw['body_temp_avg']}°C / 최고 {tw['body_temp_max']}°C — {tw['body_temp_status']}{temp_extra}
 
 [일별 수면]
 {day_lines}
@@ -224,23 +241,18 @@ def _build_prompt(ctx: dict) -> str:
         lw = ctx["last_week"]
         prompt += f"""
 [지난 주 대비]
-- 수면: {lw['avg_sleep_h']}h → {tw['avg_sleep_h']}h
-- 뒤척임: {lw['avg_restless_min']}분 → {tw['avg_restless_min']}분
-- 울음: {lw['cry_count']}회 → {tw['cry_count']}회
-- 호흡수(평균): {lw['breath_avg']}회/분 → {tw['breath_avg']}회/분
-- 체온(평균): {lw['body_temp_avg']}°C → {tw['body_temp_avg']}°C (최고: {lw['body_temp_max']}°C → {tw['body_temp_max']}°C)
+수면: {lw['avg_sleep_h']}h → {tw['avg_sleep_h']}h / 뒤척임: {lw['avg_restless_min']}분 → {tw['avg_restless_min']}분
+울음: {lw['cry_count']}회 → {tw['cry_count']}회 / 호흡: {lw['breath_avg']}회/분 → {tw['breath_avg']}회/분
+체온: {lw['body_temp_avg']}°C → {tw['body_temp_avg']}°C (최고: {lw['body_temp_max']}°C → {tw['body_temp_max']}°C)
 """
 
     if "two_weeks_ago" in ctx:
         ww = ctx["two_weeks_ago"]
         prompt += f"""
 [2주 전]
-- 수면 {ww['avg_sleep_h']}h / 뒤척임 {ww['avg_restless_min']}분 / 울음 {ww['cry_count']}회
-- 호흡수(평균): {ww['breath_avg']}회/분 / 체온(평균): {ww['body_temp_avg']}°C
+수면 {ww['avg_sleep_h']}h / 뒤척임 {ww['avg_restless_min']}분 / 울음 {ww['cry_count']}회
+호흡: {ww['breath_avg']}회/분 / 체온: {ww['body_temp_avg']}°C
 """
 
-    prompt += """
-위 데이터를 바탕으로 시스템 프롬프트에 정의된 JSON 구조로 응답하라.
-반드시 유효한 JSON만 출력하라. 마크다운 코드 블록 없이 순수 JSON.
-"""
+    prompt += "\n위 데이터를 바탕으로 시스템 프롬프트에 정의된 JSON 구조로 응답하라. 반드시 유효한 JSON만 출력하라."
     return prompt

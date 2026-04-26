@@ -125,6 +125,10 @@
     .kick-title { font-size: 14px; font-weight: 800; color: #92400E; margin-bottom: 5px; }
     .kick-text  { font-size: 12.5px; color: #B45309; line-height: 1.65; }
 
+    .kick-action-wrap { display: flex; align-items: center; gap: 10px; margin-top: 14px; background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 10px; padding: 12px 16px; }
+    .kick-action-icon { font-size: 18px; flex-shrink: 0; }
+    .kick-action-text { font-size: 13px; font-weight: 700; color: #1D4ED8; line-height: 1.5; }
+
     .footer { padding-top: 10px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 10px; color: #94A3B8; }
 
     @media print {
@@ -410,6 +414,11 @@ function renderReport(d) {
             <div class="step-text">${md2html(s)}</div>
           </div>`).join('')}
       </div>
+      ${d.sleep_guide.kick_action ? `
+      <div class="kick-action-wrap">
+        <span class="kick-action-icon">👉</span>
+        <span class="kick-action-text">${d.sleep_guide.kick_action}</span>
+      </div>` : ''}
     </div>` : ''}
 
     <div class="data-tips-wrap">
