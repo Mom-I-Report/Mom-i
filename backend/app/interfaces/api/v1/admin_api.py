@@ -19,6 +19,40 @@ router = APIRouter()
 
 
 @router.get(
+    "/devices",
+    summary="기기 목록 조회",
+    dependencies=[Depends(verify_api_key)],
+)
+def get_devices(db: Session = Depends(get_db)):
+    """
+    리포트가 존재하는 모든 기기(ser_no) 목록과 통계를 반환합니다.
+
+    - ser_no         : 기기 시리얼 번호
+    - subscribed_at  : 최초 리포트 생성일 (구독 시작일로 간주)
+    - last_report_at : 가장 최근 리포트 생성일
+    - report_count   : 총 리포트 수
+    """
+    return report_repo.get_all_devices(db)
+
+
+@router.get(
+    "/devices/{ser_no}/reports",
+    summary="기기별 최근 3주치 리포트 조회",
+    dependencies=[Depends(verify_api_key)],
+)
+def get_device_reports(ser_no: str, db: Session = Depends(get_db)):
+    """
+    특정 기기의 최근 3주치 리포트 전체 JSON을 반환합니다.
+
+    - report_id   : 리포트 PK
+    - week_start  : 주 시작일
+    - created_at  : 리포트 생성 시각
+    - report_json : 전체 리포트 데이터 (summary, breath, body_temp, daily, trend, ai_comment 등)
+    """
+    return report_repo.get_device_reports(db, ser_no, limit=3)
+
+
+@router.get(
     "/stats",
     summary="관리자 대시보드 통계",
     dependencies=[Depends(verify_api_key)],

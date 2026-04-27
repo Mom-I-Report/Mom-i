@@ -20,7 +20,7 @@ def _cleanup_old_data():
     db = SessionLocal()
     try:
         delete_old_data(db)
-        logger.info("[스케줄러] 오래된 데이터 삭제 완료 (3주 초과)")
+        logger.info("[스케줄러] 오래된 데이터 삭제 완료 (Generated_Reports 5주 초과 / Weekly_Data 12주 초과)")
     except Exception as e:
         logger.error(f"[스케줄러] 데이터 삭제 실패: {e}")
     finally:

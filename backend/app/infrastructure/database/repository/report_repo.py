@@ -250,6 +250,52 @@ def get_admin_stats(db: Session) -> dict:
     }
 
 
+# ── 관리자 기기 조회 ──────────────────────────────────────────────────────────
+
+def get_all_devices(db: Session) -> list[dict]:
+    """모든 ser_no별 구독 시작일·마지막 리포트일·리포트 수를 반환한다."""
+    rows = (
+        db.query(
+            GeneratedReport.ser_no,
+            func.min(GeneratedReport.week_start).label("subscribed_at"),
+            func.max(GeneratedReport.created_at).label("last_report_at"),
+            func.count(GeneratedReport.id).label("report_count"),
+        )
+        .group_by(GeneratedReport.ser_no)
+        .order_by(func.max(GeneratedReport.created_at).desc())
+        .all()
+    )
+    return [
+        {
+            "ser_no":         r.ser_no,
+            "subscribed_at":  r.subscribed_at.isoformat() if r.subscribed_at else None,
+            "last_report_at": r.last_report_at.isoformat() if r.last_report_at else None,
+            "report_count":   r.report_count,
+        }
+        for r in rows
+    ]
+
+
+def get_device_reports(db: Session, ser_no: str, limit: int = 3) -> list[dict]:
+    """특정 ser_no의 최근 N주치 리포트 전체를 반환한다."""
+    reports = (
+        db.query(GeneratedReport)
+        .filter(GeneratedReport.ser_no == ser_no)
+        .order_by(GeneratedReport.week_start.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "report_id":  r.id,
+            "week_start": r.week_start.isoformat(),
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "report_json": r.report_json,
+        }
+        for r in reports
+    ]
+
+
 # ── Rolling 삭제 ─────────────────────────────────────────────────────────────
 
 def delete_old_data(db: Session) -> None:

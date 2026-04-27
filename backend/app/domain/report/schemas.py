@@ -152,10 +152,11 @@ class AiCommentItem(BaseModel):
 
 class SleepGuide(BaseModel):
     """AI가 추천하는 수면 교육법."""
-    method_name: str        # 교육법 이름 (예: "퍼버법", "의자법")
-    title: str              # 솔루션 제목 ("✨ 추천 솔루션: '퍼버법'을 활용한 ...")
-    reason: str             # 추천 이유 (데이터 근거 포함)
-    steps: List[str]        # 단계별 실행 가이드 (3단계)
+    method_name: str                    # 교육법 이름 (예: "퍼버법", "의자법")
+    title: str                          # 솔루션 제목 ("✨ 추천 솔루션: '퍼버법'을 활용한 ...")
+    reason: str                         # 추천 이유 (데이터 근거 포함)
+    steps: List[str]                    # 단계별 실행 가이드 (3단계)
+    kick_action: Optional[str] = None   # 오늘 바로 실행할 핵심 행동 1가지
 
 
 class AgeKick(BaseModel):

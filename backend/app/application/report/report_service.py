@@ -237,6 +237,54 @@ def _build_trend(
     )
 
 
+def _build_pattern_summary(
+    baby_age_months: int,
+    summary: ReportSummary,
+    breath_summary: BreathSummary,
+    body_temp_summary: BodyTempSummary,
+) -> str:
+    """
+    수면 데이터를 한 줄 패턴 요약 텍스트로 변환한다.
+    Gemini가 ai_comment 작성 시 패턴을 빠르게 파악하도록 돕는다.
+    """
+    parts = []
+
+    # 월령별 권장 수면 시간 대비 평가
+    if baby_age_months <= 3:
+        recommended = (14, 17)
+    elif baby_age_months <= 11:
+        recommended = (12, 15)
+    elif baby_age_months <= 23:
+        recommended = (11, 14)
+    else:
+        recommended = (10, 13)
+
+    if summary.avg_sleep_h < recommended[0] - 1:
+        parts.append("수면 부족")
+    elif summary.avg_sleep_h > recommended[1]:
+        parts.append("수면 충분")
+    else:
+        parts.append("수면 정상 범위")
+
+    # 뒤척임 수준
+    if summary.avg_restless_min <= 20:
+        parts.append("뒤척임 적음")
+    elif summary.avg_restless_min <= 40:
+        parts.append("뒤척임 보통")
+    else:
+        parts.append("뒤척임 과다")
+
+    # 호흡
+    if not breath_summary.is_normal:
+        parts.append("호흡 범위 이탈")
+
+    # 체온
+    if body_temp_summary.status != "정상":
+        parts.append(body_temp_summary.status)
+
+    return " / ".join(parts)
+
+
 def _build_ai_context(
     req: GenerateReportRequest,
     summary: ReportSummary,
@@ -248,12 +296,13 @@ def _build_ai_context(
     Gemini에 넘길 컨텍스트 dict를 구성한다.
 
     구조:
-      - baby_age_months : 월령 (프롬프트 내 기준값 비교용)
-      - week_label      : "2026년 4월 2주차"
-      - this_week       : 이번 주 전체 요약 (수면·환경·호흡·체온·월간)
-      - daily           : 7일치 일별 수면 (패턴 분석용)
-      - last_week       : 직전 주 요약 (있을 때만 포함)
-      - two_weeks_ago   : 2주 전 요약 (있을 때만 포함)
+      - baby_age_months  : 월령 (프롬프트 내 기준값 비교용)
+      - week_label       : "2026년 4월 2주차"
+      - pattern_summary  : 수면 패턴 한 줄 요약 (AI 빠른 파악용)
+      - this_week        : 이번 주 전체 요약 (수면·환경·호흡·체온·월간)
+      - daily            : 7일치 일별 수면 (패턴 분석용)
+      - last_week        : 직전 주 요약 (있을 때만 포함)
+      - two_weeks_ago    : 2주 전 요약 (있을 때만 포함)
 
     prev_data는 generate_report()에서 weeks=2로 1회 조회한 결과를 재사용.
     (DB 쿼리 중복 없음)
@@ -261,6 +310,9 @@ def _build_ai_context(
     ctx: dict = {
         "baby_age_months": req.baby_age_months,
         "week_label": _week_label(req.week_start),
+        "pattern_summary": _build_pattern_summary(
+            req.baby_age_months, summary, breath_summary, body_temp_summary
+        ),
         "this_week": {
             # 수면
             "avg_sleep_h":      summary.avg_sleep_h,
@@ -400,8 +452,8 @@ async def generate_report(db: Session, req: GenerateReportRequest) -> GenerateRe
     ai_context  = _build_ai_context(req, summary, breath_summary, body_temp_summary, prev_data)
     ai_result   = await generate_insight(ai_context)
     ai_comment  = ai_result.get("ai_comment", [])
-    sleep_guide = SleepGuide(**ai_result["sleep_guide"]) if "sleep_guide" in ai_result else None
-    age_kick    = AgeKick(**ai_result["age_kick"]) if "age_kick" in ai_result else None
+    sleep_guide = SleepGuide.model_validate(ai_result["sleep_guide"]) if ai_result.get("sleep_guide") else None
+    age_kick    = AgeKick.model_validate(ai_result["age_kick"]) if ai_result.get("age_kick") else None
 
     # Step 6 — 응답 객체 생성 및 저장
     week_label  = _week_label(req.week_start)

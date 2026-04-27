@@ -8,7 +8,7 @@ _ROOT_ENV = Path(__file__).resolve().parents[3] / ".env"
 class Settings(BaseSettings):
     PROJECT_NAME: str = "맘아이 리포트 서버"
     GEMINI_API_KEY: str = ""
-    DATABASE_URL: str = "sqlite:///./momi.db"
+    DATABASE_URL: str = ""
 
     # 맘아이 메인 서버가 발급한 JWT를 검증하는 공유 시크릿 (HS256)
     JWT_SECRET: str = ""

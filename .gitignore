@@ -20,6 +20,27 @@ desktop.ini
 .env
 backend/.env
 
+# ── Python ────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── Node / Vite ────────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# ── 로그 ──────────────────────────────────────────────
+*.log
+
 # ── 기타 ──────────────────────────────────────────────
 *.tmp
 *.bak

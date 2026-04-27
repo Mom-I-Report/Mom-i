@@ -13,7 +13,7 @@ entity.py — SQLAlchemy ORM 모델 정의
 
 주의:
   SQLAlchemy create_all()은 테이블을 새로 만들 뿐 ALTER TABLE은 수행하지 않음.
-  컬럼 추가 시 기존 SQLite DB를 삭제하거나 Alembic 마이그레이션으로 적용해야 함.
+  컬럼 추가 시 Alembic 마이그레이션으로 적용해야 함.
 """
 from sqlalchemy import Column, Integer, String, Date, Text, TIMESTAMP, UniqueConstraint
 from sqlalchemy.types import JSON

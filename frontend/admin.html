@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mom-i — 관리자</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/report.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --purple: #7C3AED; --purple-lt: #F5F3FF; --purple-md: #EDE9FE; --purple-dk: #5B21B6;
+      --mint: #10B981; --slate: #64748B; --slate-lt: #F8FAFC;
+      --navy: #1E293B; --navy-lt: #334155; --border: #E9E3FF; --white: #FFFFFF;
+      --red: #DC2626; --amber: #F59E0B;
+    }
+    body { font-family: 'Noto Sans KR', sans-serif; background: #EEEAF8; color: var(--navy); min-height: 100vh; padding: 16px 12px 60px; }
+
+    /* ── 페이지 헤더 ── */
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 8px; }
+    .page-header h1 { font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 800; color: var(--purple); }
+    .page-header a { padding: 7px 14px; background: var(--navy); color: #fff; border-radius: 8px; font-size: 12px; font-weight: 700; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
+
+    /* ── 인증 바 ── */
+    .auth-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+    .auth-bar input { flex: 1; min-width: 160px; max-width: 320px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: inherit; }
+    .auth-bar input:focus { outline: none; border-color: var(--purple); }
+    .auth-bar button { padding: 8px 16px; background: var(--purple); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; }
+    .auth-bar button:hover { background: var(--purple-dk); }
+    #authStatus { font-size: 12px; color: var(--slate); }
+    #authStatus.err { color: var(--red); }
+    #authStatus.ok  { color: var(--mint); }
+
+    /* ── 레이아웃 ── */
+    .layout { display: flex; flex-direction: column; gap: 16px; max-width: 1200px; margin: 0 auto; }
+    @media (min-width: 900px) {
+      .layout { flex-direction: row; align-items: flex-start; }
+      .panel-left  { width: 400px; flex-shrink: 0; position: sticky; top: 16px; }
+      .panel-right { flex: 1; min-width: 0; }
+    }
+
+    /* ── 카드 ── */
+    .card { background: var(--white); border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(124,58,237,.07); }
+    .card-title { font-size: 11px; font-weight: 800; color: var(--purple); letter-spacing: .5px; text-transform: uppercase; margin-bottom: 12px; }
+
+    /* ── 상세 리포트 패널 ── */
+    #detailPanel { padding: 24px 20px; box-shadow: 0 4px 24px rgba(124,58,237,.11); }
+
+    /* ── 기기 목록 ── */
+    .device-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .device-table th { background: var(--slate-lt); padding: 8px 10px; font-size: 10px; font-weight: 700; color: var(--navy-lt); text-align: left; border-bottom: 1px solid var(--border); }
+    .device-table td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .device-table tr:last-child td { border-bottom: none; }
+    .device-table tr.active td { background: var(--purple-lt); }
+    .ser-badge   { font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 700; background: var(--purple-md); color: var(--purple-dk); padding: 3px 8px; border-radius: 5px; }
+    .count-badge { font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--purple); }
+    .detail-btn  { padding: 4px 12px; background: var(--purple); color: #fff; border: none; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; }
+    .detail-btn:hover  { background: var(--purple-dk); }
+    .detail-btn.active { background: var(--mint); }
+    .empty { text-align: center; padding: 40px 0; color: var(--slate); font-size: 13px; opacity: .6; }
+
+    /* ── 상세 헤더 ── */
+    .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .detail-ser { font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 800; color: var(--purple); }
+    .detail-sub { font-size: 11px; color: var(--slate); margin-top: 2px; }
+
+    /* ── 주차 탭 ── */
+    .week-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .week-tab { padding: 5px 14px; border: 1px solid var(--border); border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; background: var(--white); color: var(--slate); transition: all .15s; }
+    .week-tab:hover  { border-color: var(--purple); color: var(--purple); }
+    .week-tab.active { background: var(--purple); color: #fff; border-color: var(--purple); }
+
+    /* ── 리포트 본문 컨테이너 ── */
+    #reportBody { display: flex; flex-direction: column; gap: 16px; }
+
+    .placeholder { display: flex; align-items: center; justify-content: center; height: 300px; color: var(--slate); opacity: .5; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Mom-i 관리자</h1>
+  <a href="/demo.html">🧪 AI 테스트</a>
+</div>
+
+<div class="auth-bar">
+  <input id="apiKey" type="password" placeholder="X-API-Key 입력" value="dev-local-key" />
+  <button onclick="loadDevices()">기기 목록 불러오기</button>
+  <span id="authStatus"></span>
+</div>
+
+<div class="layout">
+
+  <div class="panel-left">
+    <div class="card">
+      <div class="card-title">기기 목록 (ser_no)</div>
+      <div id="deviceList"><div class="empty">위 버튼으로 기기 목록을 불러오세요.</div></div>
+    </div>
+  </div>
+
+  <div class="panel-right">
+    <div class="card" id="detailPanel">
+      <div class="placeholder">기기를 선택하면 최근 3주치 리포트를 표시합니다.</div>
+    </div>
+  </div>
+
+</div>
+
+<script src="/report-renderer.js"></script>
+<script>
+const BASE = 'http://localhost:8000/api/v1';
+
+function apiKey() { return document.getElementById('apiKey').value.trim(); }
+function setAuthStatus(msg, cls = '') { const el = document.getElementById('authStatus'); el.textContent = msg; el.className = cls; }
+function fmt(s)     { return s ? s.replace('T', ' ').slice(0, 16) : '-'; }
+function fmtDate(s) { return s ? s.slice(0, 10) : '-'; }
+
+// ── 기기 목록 ─────────────────────────────────────────────────────────────────
+async function loadDevices() {
+  setAuthStatus('불러오는 중...');
+  try {
+    const res = await fetch(`${BASE}/admin/devices`, { headers: { 'X-API-Key': apiKey() } });
+    if (res.status === 403) throw new Error('API Key가 올바르지 않습니다.');
+    if (!res.ok) throw new Error(`오류 ${res.status}`);
+    const devices = await res.json();
+    setAuthStatus(`기기 ${devices.length}개 조회됨`, 'ok');
+    renderDeviceList(devices);
+  } catch (e) { setAuthStatus(e.message, 'err'); }
+}
+
+function renderDeviceList(devices) {
+  const el = document.getElementById('deviceList');
+  if (!devices.length) { el.innerHTML = '<div class="empty">등록된 기기가 없습니다.</div>'; return; }
+  el.innerHTML = `
+    <table class="device-table">
+      <thead><tr>
+        <th>ser_no</th><th>구독 시작일</th><th>마지막 리포트</th><th>리포트 수</th><th></th>
+      </tr></thead>
+      <tbody>
+        ${devices.map(d => `
+          <tr id="row-${CSS.escape(d.ser_no)}">
+            <td><span class="ser-badge">${d.ser_no}</span></td>
+            <td>${fmtDate(d.subscribed_at)}</td>
+            <td>${fmt(d.last_report_at)}</td>
+            <td><span class="count-badge">${d.report_count}</span></td>
+            <td><button class="detail-btn" onclick="loadDetail('${d.ser_no}', this)">상세보기</button></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ── 상세 ─────────────────────────────────────────────────────────────────────
+let _currentReports = [];
+let _currentTab = 0;
+
+async function loadDetail(serNo, btn) {
+  document.querySelectorAll('.detail-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.device-table tr').forEach(r => r.classList.remove('active'));
+  btn.classList.add('active');
+  btn.closest('tr').classList.add('active');
+  document.getElementById('detailPanel').innerHTML = '<div class="placeholder">불러오는 중...</div>';
+  try {
+    const res = await fetch(`${BASE}/admin/devices/${encodeURIComponent(serNo)}/reports`, { headers: { 'X-API-Key': apiKey() } });
+    if (!res.ok) throw new Error(`오류 ${res.status}`);
+    const reports = await res.json();
+    _currentReports = reports;
+    _currentTab = 0;
+    renderDetail(serNo, reports);
+  } catch (e) {
+    document.getElementById('detailPanel').innerHTML = `<div class="placeholder" style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+function renderDetail(serNo, reports) {
+  if (!reports.length) {
+    document.getElementById('detailPanel').innerHTML = '<div class="placeholder">리포트가 없습니다.</div>';
+    return;
+  }
+
+  const tabs = reports.map((r, i) => {
+    const label = r.report_json?.week_label || fmtDate(r.week_start);
+    return `<div class="week-tab ${i === _currentTab ? 'active' : ''}" onclick="switchTab(${i})">${label}</div>`;
+  }).join('');
+
+  const r  = reports[_currentTab];
+  const rj = r.report_json || {};
+
+  document.getElementById('detailPanel').innerHTML = `
+    <div class="detail-header">
+      <div>
+        <div class="detail-ser">${serNo}</div>
+        <div class="detail-sub">생성일: ${fmt(r.created_at)}</div>
+      </div>
+    </div>
+    <div class="week-tabs">${tabs}</div>
+    <div id="reportBody"></div>
+  `;
+
+  renderReportBody(document.getElementById('reportBody'), rj, {
+    radarId:   'adminRadarChart',
+    barId:     'adminBarChart',
+    showTrend: true,
+  });
+}
+
+function switchTab(idx) {
+  _currentTab = idx;
+  const serNo = document.querySelector('.detail-ser')?.textContent;
+  if (!serNo) return;
+  renderDetail(serNo, _currentReports);
+}
+</script>
+</body>
+</html>

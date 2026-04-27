@@ -39,7 +39,7 @@ def on_startup():
 
 # ── 라우터 등록 ──
 app.include_router(report_api.router, prefix="/api/v1/reports", tags=["리포트"])
-app.include_router(admin_api.router,  prefix="/admin",          tags=["관리자"])
+app.include_router(admin_api.router,  prefix="/api/v1/admin",   tags=["관리자"])
 
 
 @app.get("/", tags=["시스템"])

@@ -7,146 +7,118 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/report.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --purple: #7C3AED; --purple-lt: #F5F3FF; --purple-md: #EDE9FE; --purple-dk: #5B21B6;
       --mint: #10B981; --slate: #64748B; --slate-lt: #F8FAFC;
       --navy: #1E293B; --navy-lt: #334155; --border: #E9E3FF; --white: #FFFFFF;
+      --red: #DC2626; --amber: #F59E0B;
     }
-    body { font-family: 'Noto Sans KR', sans-serif; background: #EEEAF8; color: var(--navy); min-height: 100vh; padding: 24px 16px 60px; }
 
-    h1 { text-align: center; font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 800; color: var(--purple); margin-bottom: 20px; }
+    body { font-family: 'Noto Sans KR', sans-serif; background: #EEEAF8; color: var(--navy); min-height: 100vh; padding: 16px 12px 60px; }
+
+    /* ── 페이지 헤더 ── */
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 8px; }
+    .page-header h1 { font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 800; color: var(--purple); }
+    .page-header a { padding: 7px 14px; background: var(--navy); color: #fff; border-radius: 8px; font-size: 12px; font-weight: 700; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
 
     /* ── 레이아웃 ── */
-    .layout { display: flex; gap: 20px; max-width: 1300px; margin: 0 auto; align-items: flex-start; }
-    .panel-left  { width: 460px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; }
-    .panel-right { flex: 1; min-width: 0; }
-
-    /* ── 공통 카드 ── */
-    .card {
-      background: var(--white); border-radius: 12px; padding: 18px 20px;
-      box-shadow: 0 2px 10px rgba(124,58,237,.07);
-    }
-    .card-title {
-      font-size: 12px; font-weight: 800; color: var(--purple); letter-spacing: .5px;
-      text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;
+    .layout { display: flex; flex-direction: column; gap: 16px; max-width: 1200px; margin: 0 auto; }
+    @media (min-width: 900px) {
+      .layout { flex-direction: row; align-items: flex-start; }
+      .panel-left { width: 360px; flex-shrink: 0; position: sticky; top: 16px; }
+      .panel-right { flex: 1; min-width: 0; }
     }
 
-    /* ── 폼 요소 ── */
-    .field { margin-bottom: 10px; }
+    /* ── 입력 카드 ── */
+    .card { background: var(--white); border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(124,58,237,.07); }
+    .panel-left { display: flex; flex-direction: column; gap: 12px; }
+    .card-title { font-size: 11px; font-weight: 800; color: var(--purple); letter-spacing: .5px; text-transform: uppercase; margin-bottom: 12px; }
+
+    .field { margin-bottom: 8px; }
     .field:last-child { margin-bottom: 0; }
-    label { display: block; font-size: 11px; font-weight: 600; color: var(--slate); margin-bottom: 4px; }
-    input[type="text"], input[type="number"], input[type="date"], input[type="password"] {
+    label { display: block; font-size: 11px; font-weight: 600; color: var(--slate); margin-bottom: 3px; }
+    input[type="text"], input[type="number"], input[type="date"] {
       width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px;
       font-size: 13px; font-family: inherit; color: var(--navy); background: var(--white);
-      transition: border-color .15s;
     }
     input:focus { outline: none; border-color: var(--purple); }
 
-    /* ── 2열/3열 그리드 ── */
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
 
-    /* ── 수면 테이블 ── */
     .sleep-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .sleep-table th { background: var(--slate-lt); padding: 6px 4px; font-size: 10px; font-weight: 700; color: var(--navy-lt); text-align: center; border-bottom: 1px solid var(--border); }
-    .sleep-table td { padding: 4px 3px; text-align: center; }
-    .sleep-table td.day-label { font-weight: 700; font-size: 12px; color: var(--navy); width: 28px; }
-    .sleep-table input { padding: 5px 6px; font-size: 12px; text-align: center; }
+    .sleep-table th { background: var(--slate-lt); padding: 5px 3px; font-size: 10px; font-weight: 700; color: var(--navy-lt); text-align: center; border-bottom: 1px solid var(--border); }
+    .sleep-table td { padding: 3px 2px; text-align: center; }
+    .sleep-table td.day-label { font-weight: 700; font-size: 12px; color: var(--navy); width: 24px; }
+    .sleep-table input { padding: 4px 5px; font-size: 12px; text-align: center; }
 
-    /* ── 실행 버튼 ── */
-    .run-btn {
-      width: 100%; padding: 13px; background: var(--purple); color: #fff;
-      border: none; border-radius: 10px; font-size: 15px; font-weight: 800;
-      cursor: pointer; font-family: inherit; transition: background .15s;
-    }
+    .run-btn { width: 100%; padding: 12px; background: var(--purple); color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 800; cursor: pointer; font-family: inherit; transition: background .15s; }
     .run-btn:hover { background: var(--purple-dk); }
     .run-btn:disabled { background: #aaa; cursor: not-allowed; }
+    .run-btn.secondary { background: transparent; border: 1px solid var(--border); color: var(--slate); margin-top: -4px; }
 
-    /* ── 상태 메시지 ── */
-    #status { font-size: 13px; color: var(--slate); text-align: center; min-height: 18px; }
-    #status.err { color: #DC2626; }
+    #status { font-size: 12px; color: var(--slate); text-align: center; min-height: 16px; }
+    #status.err { color: var(--red); }
     #status.ok  { color: var(--mint); }
 
-    /* ── 리포트 출력 (A4 스타일) ── */
+    /* ── 리포트 영역 ── */
     .a4 {
-      background: var(--white); border-radius: 10px; padding: 40px 48px 36px;
-      box-shadow: 0 6px 32px rgba(124,58,237,.13); display: flex; flex-direction: column; gap: 20px;
-      min-height: 600px;
+      background: var(--white); border-radius: 12px; padding: 24px 20px;
+      box-shadow: 0 4px 24px rgba(124,58,237,.11);
+      display: flex; flex-direction: column; gap: 16px; min-height: 400px;
     }
-    .placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; height: 500px; color: var(--slate); opacity: .5; }
-    .placeholder .ph-icon { font-size: 48px; }
+    @media (min-width: 600px) { .a4 { padding: 32px 36px; gap: 20px; } }
+
+    .placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; height: 300px; color: var(--slate); opacity: .5; }
+    .placeholder .ph-icon { font-size: 40px; }
     .placeholder p { font-size: 13px; }
 
-    /* ── 리포트 내부 스타일 ── */
-    .header { display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 14px; border-bottom: 2.5px solid var(--purple); }
-    .brand-name { font-family: 'Outfit', sans-serif; font-size: 24px; font-weight: 800; color: var(--purple); }
-    .brand-sub  { font-size: 11px; color: var(--slate); margin-top: 3px; }
-    .header-main { font-size: 15px; font-weight: 800; text-align: right; }
-    .header-sub  { font-size: 11px; color: var(--slate); margin-top: 3px; text-align: right; }
+    /* 리포트 헤더 */
+    .rep-header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 12px; border-bottom: 2.5px solid var(--purple); gap: 8px; }
+    .brand-name { font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 800; color: var(--purple); }
+    .brand-sub  { font-size: 10px; color: var(--slate); margin-top: 2px; }
+    .header-info { text-align: right; }
+    .header-main { font-size: 13px; font-weight: 800; line-height: 1.4; }
+    .header-sub  { font-size: 10px; color: var(--slate); margin-top: 2px; }
 
-    .top-data-grid { background: var(--slate-lt); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
-    .compact-stats { display: flex; gap: 8px; }
-    .c-stat-row { flex: 1; display: flex; align-items: center; background: #fff; padding: 9px 12px; border-radius: 8px; border-left: 3px solid var(--purple); }
-    .c-stat-row.mint { border-left-color: var(--mint); }
-    .c-stat-icon  { font-size: 14px; margin-right: 8px; }
-    .c-stat-label { flex: 1; font-size: 10px; color: var(--slate); font-weight: 600; }
-    .c-stat-value { font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 800; }
+    /* 리포트 본문 컨테이너 */
+    #reportBody { display: flex; flex-direction: column; gap: 16px; }
 
-    .compact-table { width: 100%; border-collapse: collapse; font-size: 11px; background: #fff; border-radius: 8px; overflow: hidden; }
-    .compact-table th, .compact-table td { padding: 7px 4px; border-bottom: 1px solid var(--slate-lt); text-align: center; }
-    .compact-table tr:last-child td { border-bottom: none; }
-    .compact-table th { background: #F1F5F9; font-weight: 700; color: var(--navy-lt); }
-    .compact-table td { font-family: 'Outfit', sans-serif; font-weight: 500; }
-    .compact-table td.td-day { font-family: 'Noto Sans KR', sans-serif; font-weight: 700; text-align: left; padding-left: 12px; }
-    .compact-table td.hi { color: #D25E4A; font-weight: 700; }
+    /* 리포트 푸터 */
+    .rep-footer { padding-top: 10px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; font-size: 10px; color: #94A3B8; }
 
-    .ai-sol-wrap { background: linear-gradient(180deg, #fff 0%, var(--purple-lt) 100%); border: 1px solid var(--purple-md); border-radius: 14px; padding: 22px; }
-    .ai-badge { display: inline-block; background: var(--purple); color: #fff; font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 99px; margin-bottom: 10px; }
-    .ai-sol-title  { font-size: 17px; font-weight: 800; margin-bottom: 8px; line-height: 1.3; }
-    .ai-sol-reason { font-size: 12.5px; color: var(--navy-lt); line-height: 1.6; background: rgba(255,255,255,.7); padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; border-left: 3px solid var(--purple-dk); }
-    .ai-steps { display: flex; flex-direction: column; gap: 10px; }
-    .ai-step { display: flex; gap: 12px; background: #fff; padding: 14px; border-radius: 10px; }
-    .step-num { width: 26px; height: 26px; background: var(--purple-md); color: var(--purple-dk); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 13px; flex-shrink: 0; }
-    .step-text { font-size: 12.5px; color: var(--navy); line-height: 1.6; padding-top: 3px; }
-    .step-text strong { color: var(--purple-dk); font-weight: 800; }
-
-    .data-tips-wrap { display: flex; flex-direction: column; gap: 9px; }
-    .tip-box { display: flex; align-items: flex-start; gap: 12px; padding: 14px 18px; border-radius: 12px; border-left: 4px solid transparent; background: #fff; }
-    .tip-box.caution { border-left-color: #F59E0B; background: #FFFBEB; }
-    .tip-box.good    { border-left-color: #10B981; background: #ECFDF5; }
-    .tip-icon  { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
-    .tip-title { font-size: 13px; font-weight: 800; margin-bottom: 5px; }
-    .tip-text  { font-size: 12px; color: var(--navy-lt); line-height: 1.6; }
-
-    .kick-wrap { display: flex; gap: 16px; background: #FFFBEB; border: 1px solid #FEF3C7; border-radius: 14px; padding: 18px 22px; }
-    .kick-icon  { font-size: 30px; flex-shrink: 0; }
-    .kick-title { font-size: 14px; font-weight: 800; color: #92400E; margin-bottom: 5px; }
-    .kick-text  { font-size: 12.5px; color: #B45309; line-height: 1.65; }
-
-    .footer { padding-top: 10px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 10px; color: #94A3B8; }
-
+    /* ── 인쇄 / PDF ── */
     @media print {
-      .panel-left, #status, h1 { display: none; }
       body { background: #fff; padding: 0; }
+      .page-header, .panel-left, #status { display: none !important; }
       .layout { display: block; }
-      .a4 { box-shadow: none; border-radius: 0; padding: 15px 30px; gap: 14px; }
+      .panel-right { width: 100%; }
+      .a4 { box-shadow: none; border-radius: 0; padding: 16px 24px; gap: 14px; min-height: unset; }
+      .ai-sol-wrap, .kick-wrap { break-inside: avoid; }
+      .tip-box { break-inside: avoid; }
     }
   </style>
 </head>
 <body>
 
-<h1>🌙 Mom-i AI 리포트 테스트</h1>
+<div class="page-header">
+  <h1>🌙 Mom-i AI 리포트 테스트</h1>
+  <a href="/admin.html">← 관리자 홈</a>
+</div>
 
 <div class="layout">
 
-  <!-- ── 왼쪽: 입력 폼 ── -->
   <div class="panel-left">
-
-    <!-- 기본 정보 -->
     <div class="card">
       <div class="card-title">👶 기본 정보</div>
+      <div class="field">
+        <label>기기 번호 (ser_no) — 비우면 월령 기반 자동 생성</label>
+        <input id="serNo" type="text" placeholder="예: DEMO-7m" />
+      </div>
       <div class="grid-2">
         <div class="field">
           <label>월령 (개월)</label>
@@ -159,40 +131,29 @@
       </div>
     </div>
 
-    <!-- 수면 데이터 (7일) -->
     <div class="card">
       <div class="card-title">😴 수면 데이터 (7일)</div>
       <table class="sleep-table">
-        <thead>
-          <tr>
-            <th>요일</th>
-            <th>수면 시간 (분)</th>
-            <th>뒤척임 (분)</th>
-          </tr>
-        </thead>
-        <tbody id="sleepBody">
-          <!-- JS로 생성 -->
-        </tbody>
+        <thead><tr><th>요일</th><th>수면 (분)</th><th>뒤척임 (분)</th></tr></thead>
+        <tbody id="sleepBody"></tbody>
       </table>
     </div>
 
-    <!-- 실내 환경 -->
     <div class="card">
       <div class="card-title">🌡️ 실내 환경</div>
       <div class="grid-3">
-        <div class="field"><label>평균 온도 (°C)</label><input id="tempAvg" type="number" step="0.1" value="22.0" /></div>
-        <div class="field"><label>최고 온도 (°C)</label><input id="tempMax" type="number" step="0.1" value="23.5" /></div>
-        <div class="field"><label>최저 온도 (°C)</label><input id="tempMin" type="number" step="0.1" value="21.5" /></div>
+        <div class="field"><label>평균 온도</label><input id="tempAvg" type="number" step="0.1" value="22.0" /></div>
+        <div class="field"><label>최고 온도</label><input id="tempMax" type="number" step="0.1" value="23.5" /></div>
+        <div class="field"><label>최저 온도</label><input id="tempMin" type="number" step="0.1" value="21.5" /></div>
       </div>
-      <div class="grid-2" style="margin-top:8px">
+      <div class="grid-2" style="margin-top:6px">
         <div class="field"><label>최대 소음 (dB)</label><input id="dbMax" type="number" value="58" /></div>
         <div class="field"><label>평균 소음 (dB)</label><input id="dbAvg" type="number" value="44" /></div>
       </div>
     </div>
 
-    <!-- 호흡수 -->
     <div class="card">
-      <div class="card-title">💨 수면 중 호흡수 (회/분)</div>
+      <div class="card-title">💨 호흡수 (회/분)</div>
       <div class="grid-3">
         <div class="field"><label>최소</label><input id="breathMin" type="number" value="22" /></div>
         <div class="field"><label>평균</label><input id="breathAvg" type="number" value="30" /></div>
@@ -200,9 +161,8 @@
       </div>
     </div>
 
-    <!-- 체온 -->
     <div class="card">
-      <div class="card-title">🌡️ 수면 중 체온 (°C)</div>
+      <div class="card-title">🌡️ 체온 (°C)</div>
       <div class="grid-3">
         <div class="field"><label>최소</label><input id="btMin" type="number" step="0.1" value="36.3" /></div>
         <div class="field"><label>평균</label><input id="btAvg" type="number" step="0.1" value="36.7" /></div>
@@ -210,12 +170,11 @@
       </div>
     </div>
 
-    <!-- 월간 집계 + 이벤트 -->
     <div class="card">
       <div class="card-title">📅 월간 집계 &amp; 이벤트</div>
       <div class="grid-2">
-        <div class="field"><label>월간 평균 수면 (시간)</label><input id="monthSleep" type="number" step="0.1" value="12.5" /></div>
-        <div class="field"><label>월간 뒤척임 (시간)</label><input id="monthRestless" type="number" step="0.1" value="0.5" /></div>
+        <div class="field"><label>월간 평균 수면 (h)</label><input id="monthSleep" type="number" step="0.1" value="12.5" /></div>
+        <div class="field"><label>월간 뒤척임 (h)</label><input id="monthRestless" type="number" step="0.1" value="0.5" /></div>
         <div class="field"><label>울음 감지 (회)</label><input id="cryCount" type="number" value="5" /></div>
         <div class="field"><label>카메라 이탈 (회)</label><input id="leaveCount" type="number" value="2" /></div>
       </div>
@@ -223,42 +182,26 @@
 
     <div id="status"></div>
     <button class="run-btn" id="runBtn" onclick="runDemo()">✨ AI 리포트 생성</button>
-    <button class="run-btn" style="background:transparent; border:1px solid var(--border); color:var(--slate); margin-top:-6px;" onclick="window.print()">🖨️ PDF 저장</button>
-
+    <button class="run-btn secondary" onclick="window.print()">🖨️ PDF 저장</button>
   </div>
 
-  <!-- ── 오른쪽: 리포트 출력 ── -->
   <div class="panel-right">
     <div id="report" class="a4">
       <div class="placeholder">
         <div class="ph-icon">🌙</div>
-        <p>왼쪽 값을 입력하고 "AI 리포트 생성"을 누르세요.</p>
+        <p>값을 입력하고 "AI 리포트 생성"을 누르세요.</p>
       </div>
     </div>
   </div>
 
 </div>
 
+<script src="/report-renderer.js"></script>
 <script>
-// ── 요일 라벨 ───────────────────────────────────────────────────────────────
 const DAYS = ['월','화','수','목','금','토','일'];
+const SLEEP_DEFAULTS    = [710, 745, 630, 780, 700, 785, 690];
+const RESTLESS_DEFAULTS = [25,  15,  55,  10,  35,  20,  40];
 
-// EMTAKE가 제공하지 않는 표시용 시뮬레이션 값 (취침 시각, 일별 온도)
-const DISPLAY_EXTRA = [
-  { bedtime: '21:30', dailyTemp: 22.3 },
-  { bedtime: '21:00', dailyTemp: 22.1 },
-  { bedtime: '22:00', dailyTemp: 23.5 },
-  { bedtime: '21:15', dailyTemp: 21.8 },
-  { bedtime: '21:30', dailyTemp: 22.0 },
-  { bedtime: '21:00', dailyTemp: 21.5 },
-  { bedtime: '21:45', dailyTemp: 22.2 },
-];
-
-// 수면 테이블 초기값
-const SLEEP_DEFAULTS = [710, 745, 630, 780, 700, 785, 690];
-const RESTLESS_DEFAULTS = [25, 15, 55, 10, 35, 20, 40];
-
-// ── 수면 테이블 렌더링 ──────────────────────────────────────────────────────
 (function buildSleepTable() {
   const tbody = document.getElementById('sleepBody');
   DAYS.forEach((day, i) => {
@@ -271,53 +214,26 @@ const RESTLESS_DEFAULTS = [25, 15, 55, 10, 35, 20, 40];
   });
 })();
 
-// ── 유틸 ─────────────────────────────────────────────────────────────────────
 function v(id) { return document.getElementById(id).value; }
 function n(id) { return Number(v(id)); }
 
-function fmtMin(m) {
-  const h = Math.floor(m / 60), mm = m % 60;
-  return mm > 0 ? `${h}h ${mm}m` : `${h}h`;
-}
-function addMins(timeStr, mins) {
-  const [h, m] = timeStr.split(':').map(Number);
-  const t = h * 60 + m + mins;
-  return `${String(Math.floor(t/60)%24).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`;
-}
-function simTossTime(bedtime, cnt) {
-  if (cnt === 0) return '-';
-  const gaps = [120, 210, 270, 330, 390];
-  return Array.from({length: Math.min(cnt, gaps.length)}, (_, i) => addMins(bedtime, gaps[i])).join(', ');
-}
-function avgBedtime() {
-  const mins = DISPLAY_EXTRA.map(e => { const [h,m] = e.bedtime.split(':').map(Number); return h*60+m; });
-  const avg = Math.round(mins.reduce((a,b)=>a+b,0)/mins.length);
-  return `${String(Math.floor(avg/60)).padStart(2,'0')}:${String(avg%60).padStart(2,'0')}`;
-}
-function md2html(str) {
-  return str.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-}
-
-function setStatus(msg, cls='') {
+function setStatus(msg, cls = '') {
   const el = document.getElementById('status');
   el.textContent = msg; el.className = cls;
 }
 
-// ── 요청 데이터 수집 ─────────────────────────────────────────────────────────
 function buildRequest() {
   const weekStartStr = v('weekStart');
   const [wy, wm, wd] = weekStartStr.split('-').map(Number);
-
   const sleep = DAYS.map((_, i) => {
     const d = new Date(wy, wm-1, wd+i);
     const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     return { date: dateStr, sleep_min: n(`sleep_${i}`), restless_min: n(`restless_${i}`) };
   });
-
   return {
-    ser_no: 'DEMO-001',
+    ser_no:          v('serNo').trim() || `DEMO-${n('ageMonths')}m`,
     baby_age_months: n('ageMonths'),
-    week_start: weekStartStr,
+    week_start:      weekStartStr,
     sleep,
     environment: { temp_avg: n('tempAvg'), temp_max: n('tempMax'), temp_min: n('tempMin'), db_max: n('dbMax'), db_avg: n('dbAvg') },
     breath:      { breath_min: n('breathMin'), breath_max: n('breathMax'), breath_avg: n('breathAvg') },
@@ -327,140 +243,63 @@ function buildRequest() {
   };
 }
 
-// ── 백엔드 응답 → 렌더링 데이터 변환 ────────────────────────────────────────
-function adapt(res, req) {
+function buildMeta(req) {
   const [wy, wm, wd] = req.week_start.split('-').map(Number);
   const ws = new Date(wy, wm-1, wd);
   const we = new Date(wy, wm-1, wd+6);
   const fmt = d => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
-  const weekNum = Math.floor((ws.getDate()-1)/7) + 1;
-
-  const daily = res.daily.map((d, i) => {
-    const ex = DISPLAY_EXTRA[i];
-    const sleepM = Math.round(d.sleep_h * 60);
-    const cnt = Math.max(0, Math.round(d.restless_min / 18));
-    return {
-      day: d.day, sleep: sleepM, temp: ex.dailyTemp,
-      bedtime: ex.bedtime, wake: addMins(ex.bedtime, sleepM),
-      tossTime: simTossTime(ex.bedtime, cnt), tossCnt: cnt, tossMin: d.restless_min,
-    };
-  });
-
   return {
     ageMonths: req.baby_age_months,
-    weekNum, weekStart: fmt(ws), weekEnd: fmt(we),
+    weekNum:   Math.floor((ws.getDate()-1)/7) + 1,
+    weekStart: fmt(ws),
+    weekEnd:   fmt(we),
     generated: fmt(new Date()),
-    daily,
-    sleep_guide: res.sleep_guide,
-    ai_comment:  res.ai_comment  || [],
-    age_kick:    res.age_kick,
   };
 }
 
-// ── 리포트 렌더링 ─────────────────────────────────────────────────────────────
-function renderReport(d) {
-  const avgSleep = Math.round(d.daily.reduce((s,r)=>s+r.sleep,0)/d.daily.length);
-  const avgTemp  = (d.daily.reduce((s,r)=>s+r.temp,0)/d.daily.length).toFixed(1);
-
-  document.getElementById('report').innerHTML = `
-    <div class="header">
-      <div>
-        <div class="brand-name">Mom-i</div>
-        <div class="brand-sub">프리미엄 수면 교육 가이드</div>
-      </div>
-      <div>
-        <div class="header-main">아기 (${d.ageMonths}개월) — ${d.weekNum}주차 가이드</div>
-        <div class="header-sub">데이터: ${d.weekStart} ~ ${d.weekEnd}</div>
-      </div>
-    </div>
-
-    <div class="top-data-grid">
-      <div class="compact-stats">
-        <div class="c-stat-row"><span class="c-stat-icon">😴</span><span class="c-stat-label">평균 수면</span><span class="c-stat-value">${fmtMin(avgSleep)}</span></div>
-        <div class="c-stat-row mint"><span class="c-stat-icon">🌙</span><span class="c-stat-label">평균 취침</span><span class="c-stat-value">${avgBedtime()}</span></div>
-        <div class="c-stat-row"><span class="c-stat-icon">🌡️</span><span class="c-stat-label">평균 온도</span><span class="c-stat-value">${avgTemp}°C</span></div>
-      </div>
-      <table class="compact-table">
-        <thead><tr>
-          <th style="text-align:left;padding-left:12px">요일</th>
-          <th>수면 구간</th><th>수면 시간</th><th>뒤척임 시각</th><th>뒤척임</th><th>온도</th>
-        </tr></thead>
-        <tbody>
-          ${d.daily.map(day=>`<tr>
-            <td class="td-day">${day.day}</td>
-            <td>${day.bedtime} ~ ${day.wake}</td>
-            <td>${fmtMin(day.sleep)}</td>
-            <td style="color:#64748B;font-size:10px">${day.tossTime}</td>
-            <td><span style="color:#D25E4A;font-weight:700">${day.tossCnt}회</span> <span style="font-size:10px">(${day.tossMin}분)</span></td>
-            <td class="${day.temp>=23?'hi':''}">${day.temp}°</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>
-
-    ${d.sleep_guide ? `
-    <div class="ai-sol-wrap">
-      <div class="ai-badge">✨ AI 추천 솔루션</div>
-      <div class="ai-sol-title">${d.sleep_guide.title}</div>
-      <div class="ai-sol-reason">${md2html(d.sleep_guide.reason)}</div>
-      <div class="ai-steps">
-        ${d.sleep_guide.steps.map((s,i)=>`
-          <div class="ai-step">
-            <div class="step-num">${i+1}</div>
-            <div class="step-text">${md2html(s)}</div>
-          </div>`).join('')}
-      </div>
-    </div>` : ''}
-
-    <div class="data-tips-wrap">
-      ${d.ai_comment.map(t=>`
-        <div class="tip-box ${t.type}">
-          <div class="tip-icon">${t.icon}</div>
-          <div>
-            <div class="tip-title">${t.title}</div>
-            <div class="tip-text">${md2html(t.text)}</div>
-          </div>
-        </div>`).join('')}
-    </div>
-
-    ${d.age_kick ? `
-    <div class="kick-wrap">
-      <div class="kick-icon">💡</div>
-      <div>
-        <div class="kick-title">${d.age_kick.title}</div>
-        <div class="kick-text">${md2html(d.age_kick.text)}</div>
-      </div>
-    </div>` : ''}
-
-    <div class="footer">
-      <span>Mom-i © 2026 · 본 리포트의 가이드라인은 의학적 진단을 대체하지 않습니다.</span>
-      <span>생성일: ${d.generated}</span>
-    </div>
-  `;
-}
-
-// ── 실행 ─────────────────────────────────────────────────────────────────────
 async function runDemo() {
-  const apiKey = 'dev-local-key';
-
   const btn = document.getElementById('runBtn');
   btn.disabled = true; btn.textContent = '⏳ Gemini 분석 중...';
-  setStatus('요청 중 — Gemini 응답에 10~20초 소요될 수 있습니다.');
+  setStatus('요청 중 — 10~20초 소요될 수 있습니다.');
 
   try {
     const req = buildRequest();
     const res = await fetch('http://localhost:8000/api/v1/reports/generate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': 'dev-local-key' },
       body: JSON.stringify(req),
     });
-
     if (!res.ok) throw new Error(`서버 오류 ${res.status}: ${await res.text()}`);
 
-    const data = await res.json();
-    renderReport(adapt(data, req));
+    const rj   = await res.json();
+    const meta = buildMeta(req);
+
+    document.getElementById('report').innerHTML = `
+      <div class="rep-header">
+        <div>
+          <div class="brand-name">Mom-i</div>
+          <div class="brand-sub">프리미엄 수면 교육 가이드</div>
+        </div>
+        <div class="header-info">
+          <div class="header-main">아기 (${meta.ageMonths}개월) · ${meta.weekNum}주차</div>
+          <div class="header-sub">${meta.weekStart} ~ ${meta.weekEnd}</div>
+        </div>
+      </div>
+      <div id="reportBody"></div>
+      <div class="rep-footer">
+        <span>Mom-i © 2026 · 본 가이드라인은 의학적 진단을 대체하지 않습니다.</span>
+        <span>생성일: ${meta.generated}</span>
+      </div>
+    `;
+
+    renderReportBody(document.getElementById('reportBody'), rj, {
+      radarId:   'radarChart',
+      barId:     'dailyBarChart',
+      showTrend: false,
+    });
+
     setStatus('✅ AI 리포트 생성 완료', 'ok');
-  } catch(e) {
+  } catch (e) {
     setStatus(`오류: ${e.message}`, 'err');
   } finally {
     btn.disabled = false; btn.textContent = '✨ AI 리포트 생성';
