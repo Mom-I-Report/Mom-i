@@ -41,6 +41,7 @@ function renderReport() {
       <span>📄 Mom-i 수면 교육 가이드 리포트 미리보기</span>
       <button onclick="window.print()">🖨️ PDF 저장 / 인쇄</button>
       <a href="/demo.html" style="padding:8px 14px; background:var(--purple-lt); color:var(--purple); border:1px solid var(--border); border-radius:7px; font-size:12px; font-weight:700; text-decoration:none; white-space:nowrap;">🧪 AI 테스트</a>
+      <a href="/admin.html" style="padding:8px 14px; background:var(--navy); color:#fff; border-radius:7px; font-size:12px; font-weight:700; text-decoration:none; white-space:nowrap;">⚙️ 관리자</a>
     </div>
 
     <!-- A4 리포트 -->

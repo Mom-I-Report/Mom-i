@@ -12,15 +12,16 @@ gemini_client.py — Gemini 3 Flash 비동기 클라이언트
 import asyncio
 import json
 import logging
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from pathlib import Path
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# ── 모델 초기화 (모듈 로드 시 1회) ──────────────────────────────────────────
+# ── 클라이언트 초기화 (모듈 로드 시 1회) ────────────────────────────────────
 
-genai.configure(api_key=settings.GEMINI_API_KEY)
+_client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 # ── 프롬프트 파일 경로 ────────────────────────────────────────────────────────
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
@@ -41,10 +42,7 @@ _SYSTEM_PROMPT = (
 )
 _INPUT_TEMPLATE = (_PROMPTS_DIR / "input_template.md").read_text(encoding="utf-8")
 
-_model = genai.GenerativeModel(
-    model_name="gemini-3-flash-preview",
-    system_instruction=_SYSTEM_PROMPT,
-)
+_MODEL_NAME = "gemini-3-flash-preview"
 
 # ── 상수 ─────────────────────────────────────────────────────────────────────
 
@@ -99,16 +97,18 @@ async def _call_gemini(prompt: str) -> str:
     Gemini를 비동기로 호출하고 응답 텍스트를 반환한다.
     response_mime_type: "application/json" 으로 JSON 출력을 강제한다.
     """
-    generation_config = {
-        "response_mime_type": "application/json",
-    }
+    config = types.GenerateContentConfig(
+        system_instruction=_SYSTEM_PROMPT,
+        response_mime_type="application/json",
+    )
     last_exc: Exception | None = None
 
     for attempt in range(1, _MAX_ATTEMPTS + 1):
         try:
-            response = await _model.generate_content_async(
-                prompt,
-                generation_config=generation_config,
+            response = await _client.aio.models.generate_content(
+                model=_MODEL_NAME,
+                contents=prompt,
+                config=config,
             )
             _log_token_usage(response)
             return response.text.strip()

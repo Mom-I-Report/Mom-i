@@ -452,8 +452,8 @@ async def generate_report(db: Session, req: GenerateReportRequest) -> GenerateRe
     ai_context  = _build_ai_context(req, summary, breath_summary, body_temp_summary, prev_data)
     ai_result   = await generate_insight(ai_context)
     ai_comment  = ai_result.get("ai_comment", [])
-    sleep_guide = SleepGuide(**ai_result["sleep_guide"]) if ai_result.get("sleep_guide") else None
-    age_kick    = AgeKick(**ai_result["age_kick"]) if ai_result.get("age_kick") else None
+    sleep_guide = SleepGuide.model_validate(ai_result["sleep_guide"]) if ai_result.get("sleep_guide") else None
+    age_kick    = AgeKick.model_validate(ai_result["age_kick"]) if ai_result.get("age_kick") else None
 
     # Step 6 — 응답 객체 생성 및 저장
     week_label  = _week_label(req.week_start)

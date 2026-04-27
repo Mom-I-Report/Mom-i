@@ -13,6 +13,9 @@
 | [prompt-context-engineering-2026-04-26.md](./prompt-context-engineering-2026-04-26.md) | 04-26 | 작업 | 프롬프트 6파일 분리 및 Gemini 컨텍스트 엔지니어링 |
 | [domain-knowledge-code-mapping-2026-04-26.md](./domain-knowledge-code-mapping-2026-04-26.md) | 04-26 | 분석 | 도메인 지식(knowledge.md) → 코드 반영 매핑 + 버그 수정 |
 | [service-readiness-checklist-2026-04-26.md](./service-readiness-checklist-2026-04-26.md) | 04-26 | 체크 | 서비스 전 블로킹 이슈 + 환경설정 가이드 |
+| [frontend-render-unification-2026-04-27.md](./frontend-render-unification-2026-04-27.md) | 04-27 | 작업 | demo/admin 렌더링 통일 (공유 JS·CSS 추출) + 버그 수정 |
+| [report-delivery-options-2026-04-27.md](./report-delivery-options-2026-04-27.md) | 04-27 | 협의 | 앱팀 협의용 리포트 전달 방식 4가지 옵션 비교 |
+| [system-flow-2026-04-27.md](./system-flow-2026-04-27.md) | 04-27 | 설계 | 전체 시스템 플로우 다이어그램 (코드 기준) |
 
 ---
 
@@ -38,3 +41,7 @@
 | CORS 도메인 제한 | 🟡 운영 전 처리 |
 | 스케줄러 로그 오류 | ✅ 수정 완료 (04-26) |
 | sleep_guide null 버그 | ✅ 수정 완료 (04-26) |
+| demo/admin 렌더링 통일 | ✅ 완료 (04-27) |
+| Gemini SDK 전환 (google-genai) | ✅ 완료 (04-27) |
+| 관리자 기기 API 추가 | ✅ 완료 (04-27) |
+| 리포트 전달 방식 앱팀 협의 | ⏳ 협의 필요 |
