@@ -257,7 +257,7 @@ def get_all_devices(db: Session) -> list[dict]:
     rows = (
         db.query(
             GeneratedReport.ser_no,
-            func.min(GeneratedReport.created_at).label("subscribed_at"),
+            func.min(GeneratedReport.week_start).label("subscribed_at"),
             func.max(GeneratedReport.created_at).label("last_report_at"),
             func.count(GeneratedReport.id).label("report_count"),
         )
@@ -267,10 +267,10 @@ def get_all_devices(db: Session) -> list[dict]:
     )
     return [
         {
-            "ser_no":        r.ser_no,
-            "subscribed_at": r.subscribed_at.isoformat() if r.subscribed_at else None,
+            "ser_no":         r.ser_no,
+            "subscribed_at":  r.subscribed_at.isoformat() if r.subscribed_at else None,
             "last_report_at": r.last_report_at.isoformat() if r.last_report_at else None,
-            "report_count":  r.report_count,
+            "report_count":   r.report_count,
         }
         for r in rows
     ]
