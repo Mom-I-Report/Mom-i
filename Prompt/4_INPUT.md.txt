@@ -1,0 +1,8 @@
+# INPUT DATA
+
+아기 월령: {{age_month}}
+평균 수면 시간: {{avg_sleep}}
+취침 시간: {{bed_time}}
+야간 각성 횟수: {{wake_count}}
+수면 환경 온도: {{temperature}}
+패턴 요약: {{pattern_summary}}
