@@ -10,9 +10,9 @@
 맘아이 메인 서버가 주간 데이터를 push하면 Gemini로 분석해 리포트 JSON을 반환하고, 앱이 재열람할 수 있도록 DB에 보관한다.
 
 ```
-EMTAKE 카메라 → 맘아이 서버 ──POST /generate──► 이 서버 ──► Gemini API
-맘아이 앱 ─────────────────────GET /reports───► 이 서버 ──► DB
-관리자 ────────────────────────GET /admin/stats► 이 서버 ──► DB
+EMTAKE 카메라 → 맘아이 서버 ──POST /api/v1/reports/generate──► 이 서버 ──► Gemini API
+맘아이 앱 ─────────────────────GET /api/v1/reports           ──► 이 서버 ──► DB
+관리자 ────────────────────────GET /api/v1/admin/stats        ──► 이 서버 ──► DB
 ```
 
 - **개인정보 없음** — `ser_no`(카메라 시리얼 번호)만 식별자로 사용. 이름·생년월일 일절 저장 안 함
@@ -64,8 +64,11 @@ mom-i/
 │           ├── report_api.py
 │           └── admin_api.py
 ├── frontend/
-│   ├── src/                    ← Vite + TypeScript (jang 담당)
-│   └── demo.html               ← 백엔드 API 직접 호출 테스트 페이지 (noh 담당)
+│   ├── public/
+│   │   ├── report-renderer.js  ← 공유 렌더러 (demo/admin 공용)
+│   │   └── report.css          ← 공유 스타일
+│   ├── demo.html               ← 백엔드 API 직접 호출 테스트 페이지
+│   └── admin.html              ← 관리자 대시보드
 └── docs/
     ├── noh/                    ← AI 리포트 서버 관련 문서
     └── jang/                   ← 프론트엔드 관련 문서
@@ -141,15 +144,17 @@ Swagger UI: `http://localhost:8000/docs`
 
 | 메서드 | 경로 | 인증 | 설명 |
 |--------|------|------|------|
-| `POST` | `/generate` | X-API-Key | 주간 데이터 push → AI 리포트 생성 |
-| `GET` | `` | JWT | 내 리포트 목록 (최근 10건) |
-| `GET` | `/{report_id}` | JWT | 리포트 상세 조회 |
+| `POST` | `/api/v1/reports/generate` | X-API-Key | 주간 데이터 push → AI 리포트 생성 |
+| `GET` | `/api/v1/reports` | JWT | 내 리포트 목록 (최근 10건) |
+| `GET` | `/api/v1/reports/{report_id}` | JWT | 리포트 상세 조회 |
 
-### 관리자 (`/admin`)
+### 관리자 (`/api/v1/admin`)
 
 | 메서드 | 경로 | 인증 | 설명 |
 |--------|------|------|------|
-| `GET` | `/stats` | X-API-Key | 전체 리포트 수, 활성 기기 수, 오늘/이번 주 생성 수 등 |
+| `GET` | `/api/v1/admin/stats` | X-API-Key | 전체 리포트 수, 활성 기기 수, 오늘/이번 주 생성 수 등 |
+| `GET` | `/api/v1/admin/devices` | X-API-Key | 기기 목록 (ser_no, 구독 시작일, 마지막 리포트일, 리포트 수) |
+| `GET` | `/api/v1/admin/devices/{ser_no}/reports` | X-API-Key | 기기별 최근 3주치 리포트 |
 
 ### 시스템
 
