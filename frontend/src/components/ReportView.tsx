@@ -72,7 +72,7 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta }) => {
     }],
   };
 
-  const radarOptions = {
+  const radarOptions: any = {
     responsive: true,
     maintainAspectRatio: false,
     scales: {
@@ -80,7 +80,7 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta }) => {
         min: 0, max: 100,
         ticks: { display: false },
         grid: { color: chartColors.gridLight },
-        pointLabels: { font: { size: 11, family: 'Noto Sans KR', weight: '600' as const }, color: chartColors.textDark },
+        pointLabels: { font: { size: 11, family: 'Noto Sans KR', weight: '600' }, color: chartColors.textDark },
       },
     },
     plugins: { legend: { display: false } },
@@ -119,17 +119,17 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta }) => {
     ],
   };
 
-  const comboOptions = {
+  const comboOptions: any = {
     responsive: true,
     maintainAspectRatio: false,
-    interaction: { mode: 'index' as const, intersect: false },
+    interaction: { mode: 'index', intersect: false },
     scales: {
-      y: { position: 'left' as const, min: 0, ticks: { font: { size: 10, family: 'Inter' }, color: chartColors.textLight, callback: (v: any) => v + 'h' }, grid: { color: chartColors.gridLight, tickLength: 0 }, border: { display: false } },
-      y2: { position: 'right' as const, min: 0, ticks: { font: { size: 10, family: 'Inter' }, color: chartColors.textLight, callback: (v: any) => v + 'm' }, grid: { drawOnChartArea: false }, border: { display: false } },
-      x: { ticks: { font: { size: 11, family: 'Noto Sans KR', weight: '600' as const }, color: chartColors.textDark }, grid: { display: false }, border: { display: false } },
+      y: { position: 'left', min: 0, ticks: { font: { size: 10, family: 'Inter' }, color: chartColors.textLight, callback: (v: any) => v + 'h' }, grid: { color: chartColors.gridLight, tickLength: 0 }, border: { display: false } },
+      y2: { position: 'right', min: 0, ticks: { font: { size: 10, family: 'Inter' }, color: chartColors.textLight, callback: (v: any) => v + 'm' }, grid: { drawOnChartArea: false }, border: { display: false } },
+      x: { ticks: { font: { size: 11, family: 'Noto Sans KR', weight: '600' }, color: chartColors.textDark }, grid: { display: false }, border: { display: false } },
     },
     plugins: {
-      legend: { position: 'top' as const, align: 'end' as const, labels: { font: { size: 11, family: 'Noto Sans KR', weight: '500' as const }, color: chartColors.textDark, usePointStyle: true, boxWidth: 8, padding: 16 } },
+      legend: { position: 'top', align: 'end', labels: { font: { size: 11, family: 'Noto Sans KR', weight: '500' }, color: chartColors.textDark, usePointStyle: true, boxWidth: 8, padding: 16 } },
       tooltip: { backgroundColor: 'rgba(15,15,15,0.9)', titleFont: { family: 'Noto Sans KR' }, bodyFont: { family: 'Inter' }, padding: 12, cornerRadius: 8 },
     },
   };
