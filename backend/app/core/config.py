@@ -1,8 +1,8 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
-# config.py 기준 3단계 상위 = 프로젝트 루트
-_ROOT_ENV = Path(__file__).resolve().parents[3] / ".env"
+# config.py 기준 2단계 상위 = backend 디렉토리
+_ROOT_ENV = Path(__file__).resolve().parents[2] / ".env"
 
 
 class Settings(BaseSettings):
@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = str(_ROOT_ENV)
+        extra = "ignore"
 
 
 settings = Settings()

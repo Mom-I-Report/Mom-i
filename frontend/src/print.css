@@ -1,0 +1,14 @@
+/* ── 인쇄 / PDF ── */
+@media print {
+  body { background: #fff; padding: 0; }
+  .report-container { max-width: 100% !important; box-shadow: none !important; border-radius: 0 !important; }
+  
+  /* 사이드바, 헤더, 입력폼 숨기기 */
+  .page-header, .panel-left, button { display: none !important; }
+  
+  /* 전체 레이아웃 리셋 */
+  .layout { display: block !important; }
+  
+  /* 불필요한 테두리 및 그림자 제거 */
+  .card, .report-container > div { border: none !important; }
+}

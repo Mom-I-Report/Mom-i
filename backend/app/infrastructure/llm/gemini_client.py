@@ -42,7 +42,7 @@ _SYSTEM_PROMPT = (
 )
 _INPUT_TEMPLATE = (_PROMPTS_DIR / "input_template.md").read_text(encoding="utf-8")
 
-_MODEL_NAME = "gemini-3-flash-preview"
+_MODEL_NAME = "gemini-2.5-flash"
 
 # ── 상수 ─────────────────────────────────────────────────────────────────────
 
@@ -55,8 +55,8 @@ _SLEEP_GUIDE_FIELDS = ["method_name", "title", "reason", "steps", "kick_action"]
 # age_kick 필수 하위 필드
 _AGE_KICK_FIELDS = ["title", "text", "is_wonder_weeks"]
 
-_MAX_ATTEMPTS   = 3
-_BACKOFF_BASE   = 1.0
+_MAX_ATTEMPTS   = 5
+_BACKOFF_BASE   = 5.0
 _RETRYABLE_KEYWORDS = ("429", "quota", "rate", "503", "unavailable")
 
 
