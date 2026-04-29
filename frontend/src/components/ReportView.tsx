@@ -28,19 +28,25 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta }) => {
 
   const { summary, breath, body_temp, daily, daily_stats, ai_comment, sleep_guide, age_kick } = data;
 
-  // daily_stats는 { day, sleep_h, restless_min } 형태
-  // daily는 { date, sleep_min, restless_min } 형태
-  // 둘 다 지원
+  // daily: 백엔드 응답 ({ day, sleep_h, restless_min } 또는 { date, sleep_min, restless_min })
+  // daily_stats: 더미 데이터 형태 ({ day, sleep_h, restless_min })
+  // 모두 지원
   const dailyRows: Array<{ day: string; sleepMin: number; restlessMin: number }> = [];
+  const parseDailyItem = (d: any): { day: string; sleepMin: number; restlessMin: number } => {
+    const dayLabel = d.day || (d.date ? new Date(d.date).toLocaleDateString('ko-KR', { weekday: 'short' }).replace('요일', '') : '-');
+    // sleep_h(시간) 또는 sleep_min(분) 둘 다 처리
+    const sleepMin = d.sleep_min != null
+      ? d.sleep_min
+      : d.sleep_h != null
+        ? Math.round(d.sleep_h * 60)
+        : 0;
+    const restlessMin = d.restless_min ?? 0;
+    return { day: dayLabel, sleepMin, restlessMin };
+  };
   if (daily && daily.length) {
-    daily.forEach((d: any) => {
-      const dayLabel = d.date ? new Date(d.date).toLocaleDateString('ko-KR', { weekday: 'short' }).replace('요일', '') : d.day || '-';
-      dailyRows.push({ day: dayLabel, sleepMin: d.sleep_min ?? 0, restlessMin: d.restless_min ?? 0 });
-    });
+    daily.forEach((d: any) => dailyRows.push(parseDailyItem(d)));
   } else if (daily_stats && daily_stats.length) {
-    daily_stats.forEach((d: any) => {
-      dailyRows.push({ day: d.day, sleepMin: Math.round((d.sleep_h || 0) * 60), restlessMin: d.restless_min ?? 0 });
-    });
+    daily_stats.forEach((d: any) => dailyRows.push(parseDailyItem(d)));
   }
 
   const avgSleepMin = dailyRows.length
@@ -252,7 +258,7 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta }) => {
               <table style={{ width: '100%', minWidth: 280, borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
                 <thead>
                   <tr>
-                    {['Day', 'Sleep', 'Toss', 'Breath', 'Temp'].map(h => (
+                    {['요일', '수면', '뒤척임', '호흡수'].map(h => (
                       <th key={h} style={{ fontFamily: 'Inter', fontWeight: 500, color: 'var(--gray-mut)', textTransform: 'uppercase', letterSpacing: 1, fontSize: 10, padding: '12px 8px', borderBottom: '1px solid var(--black)' }}>{h}</th>
                     ))}
                   </tr>
@@ -262,9 +268,8 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta }) => {
                     <tr key={i}>
                       <td style={{ padding: '12px 8px', borderBottom: '1px solid var(--gray-lt)', fontFamily: 'Noto Sans KR', fontWeight: 500, color: 'var(--gray-dark)' }}>{row.day}</td>
                       <td style={{ padding: '12px 8px', borderBottom: '1px solid var(--gray-lt)', fontFamily: 'Inter', fontWeight: 400 }}>{fmtMin(row.sleepMin)}</td>
-                      <td style={{ padding: '12px 8px', borderBottom: '1px solid var(--gray-lt)', fontFamily: 'Inter', fontWeight: 400 }}>{row.restlessMin}m</td>
-                      <td style={{ padding: '12px 8px', borderBottom: '1px solid var(--gray-lt)', fontFamily: 'Inter', fontWeight: 400 }}>{breath?.breath_avg ? `${breath.breath_avg}` : '-'}</td>
-                      <td style={{ padding: '12px 8px', borderBottom: '1px solid var(--gray-lt)', fontFamily: 'Inter', fontWeight: 400 }}>-</td>
+                      <td style={{ padding: '12px 8px', borderBottom: '1px solid var(--gray-lt)', fontFamily: 'Inter', fontWeight: 400 }}>{row.restlessMin}분</td>
+                      <td style={{ padding: '12px 8px', borderBottom: '1px solid var(--gray-lt)', fontFamily: 'Inter', fontWeight: 400 }}>{breath?.breath_avg ?? '-'}</td>
                     </tr>
                   ))}
                 </tbody>
