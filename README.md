@@ -22,6 +22,8 @@ EMTAKE 카메라 → 맘아이 서버 ──POST /api/v1/reports/generate──�
 
 ## 기술 스택
 
+**백엔드**
+
 | 분류 | 기술 |
 |------|------|
 | 프레임워크 | FastAPI + Uvicorn |
@@ -30,6 +32,15 @@ EMTAKE 카메라 → 맘아이 서버 ──POST /api/v1/reports/generate──�
 | 인증 | python-jose (JWT HS256 검증) |
 | 스케줄러 | APScheduler (매주 월요일 10:00 KST rolling 삭제) |
 | 컨테이너 | Docker + docker-compose |
+
+**프론트엔드**
+
+| 분류 | 기술 |
+|------|------|
+| 프레임워크 | React 18 + TypeScript |
+| 빌드 | Vite (멀티 페이지) |
+| 차트 | Chart.js + react-chartjs-2 |
+| PDF | html2canvas + jsPDF |
 
 ---
 
@@ -64,11 +75,38 @@ mom-i/
 │           ├── report_api.py
 │           └── admin_api.py
 ├── frontend/
+│   ├── demo.html               ← React 마운트 포인트 (AI 리포트 테스트)
+│   ├── admin.html              ← React 마운트 포인트 (관리자 대시보드)
+│   ├── vite.config.ts          ← 멀티 페이지 빌드 설정
+│   ├── tsconfig.json
 │   ├── public/
-│   │   ├── report-renderer.js  ← 공유 렌더러 (demo/admin 공용)
-│   │   └── report.css          ← 공유 스타일
-│   ├── demo.html               ← 백엔드 API 직접 호출 테스트 페이지
-│   └── admin.html              ← 관리자 대시보드
+│   │   └── favicon.svg
+│   └── src/
+│       ├── types/report.ts         ← 공유 TypeScript 타입
+│       ├── lib/
+│       │   ├── api.ts              ← fetch 함수 (generate, devices, reports)
+│       │   ├── utils.ts            ← fmtH, md2html, stripLeadingEmoji
+│       │   ├── chartSetup.ts       ← Chart.js 컴포넌트 등록
+│       │   └── pdf.ts              ← PDF 내보내기 (html2canvas + jsPDF)
+│       ├── styles/
+│       │   ├── variables.css       ← CSS 커스텀 프로퍼티 (:root)
+│       │   ├── global.css          ← 페이지 공통 스타일
+│       │   └── report.css          ← 리포트 컴포넌트 스타일
+│       ├── components/report/
+│       │   ├── RadarChart.tsx
+│       │   ├── BarChart.tsx
+│       │   ├── DataSummary.tsx     ← 레이더 + 통계 요약
+│       │   ├── DailySection.tsx    ← 일별 테이블 + 막대 차트
+│       │   ├── ActionPlan.tsx      ← 핵심 솔루션
+│       │   ├── InsightCards.tsx    ← ALERT/EXCELLENT 카드
+│       │   ├── DevCare.tsx         ← 발달 케어
+│       │   ├── ReportBody.tsx      ← 일반 리포트 (모바일 스크롤)
+│       │   └── ReportBodyPdf.tsx   ← PDF 전용 2컬럼 레이아웃
+│       ├── pages/
+│       │   ├── Demo.tsx            ← AI 테스트 페이지
+│       │   └── Admin.tsx           ← 관리자 대시보드
+│       ├── main-demo.tsx           ← demo.html 진입점
+│       └── main-admin.tsx          ← admin.html 진입점
 └── docs/
     ├── noh/                    ← AI 리포트 서버 관련 문서
     └── jang/                   ← 프론트엔드 관련 문서
