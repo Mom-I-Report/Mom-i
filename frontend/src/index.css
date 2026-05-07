@@ -93,3 +93,47 @@ body {
   background: var(--black);
   color: #fff;
 }
+
+/* Side Ad Layout */
+.side-ad-container {
+  display: grid;
+  /* 기본(모바일/태블릿): 중앙 리포트만 1열로 표시 */
+  grid-template-columns: minmax(0, 430px);
+  justify-content: center;
+  gap: 24px;
+  max-width: 1250px;
+  margin: 0 auto;
+  padding: 0 20px;
+  /* 핵심: 각 열이 자신의 콘텐츠 높이만큼만 차지하도록 설정해야 sticky가 작동함 */
+  align-items: start; 
+}
+
+.side-ad {
+  display: none;
+  position: -webkit-sticky;
+  position: sticky;
+  top: 24px;
+  /* 배너가 스크롤을 따라갈 수 있는 트랙(높이) 확보 */
+  height: max-content; 
+  z-index: 10;
+}
+
+@media (min-width: 1250px) {
+  .side-ad-container {
+    /* PC: 좌측 광고 180px + 중앙 리포트 430px + 우측 광고 180px (3열 구조) */
+    grid-template-columns: 180px minmax(0, 430px) 180px;
+  }
+  .side-ad {
+    display: block;
+  }
+}
+
+@media print {
+  .side-ad {
+    display: none !important;
+  }
+  .side-ad-container {
+    padding: 0 !important;
+    display: block !important;
+  }
+}

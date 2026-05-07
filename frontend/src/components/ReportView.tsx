@@ -1,5 +1,6 @@
 import React from 'react';
 import { Chart, Radar } from 'react-chartjs-2';
+import AdBanner from './AdBanner';
 import './charts/ChartSetup';
 import { chartColors } from './charts/ChartSetup';
 
@@ -22,6 +23,62 @@ function fmtMin(m: number) {
 function md2html(str: string) {
   return (str || '').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 }
+
+// 덜덜 떨리거나 밀리는 현상(Jitter & Lag)을 완벽히 잡은 스크롤 추적 래퍼
+const StickyWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [offset, setOffset] = React.useState(0);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    let scrollParent: HTMLElement | Window = window;
+    let curr = ref.current?.parentElement;
+
+    while (curr) {
+      const style = window.getComputedStyle(curr);
+      if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+        scrollParent = curr;
+        break;
+      }
+      curr = curr.parentElement;
+    }
+
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          if (scrollParent === window) {
+            setOffset(window.scrollY > 24 ? window.scrollY - 24 : 0);
+          } else {
+            const parent = scrollParent as HTMLElement;
+            setOffset(parent.scrollTop > 24 ? parent.scrollTop - 24 : 0);
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    scrollParent.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+
+    return () => scrollParent.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: 'relative',
+        top: `${offset}px`,
+        height: 'max-content',
+        willChange: 'top',
+      }}
+    >
+      {children}
+    </div>
+  );
+};
 
 const ReportView: React.FC<ReportViewProps> = ({ data, meta }) => {
   if (!data) return null;
@@ -196,7 +253,22 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta }) => {
   };
 
   return (
-    <div style={S.container}>
+    <div className="side-ad-container">
+      {/* 왼쪽 사이드 광고 */}
+      <div className="side-ad" style={{ zIndex: 10 }}>
+        <StickyWrapper>
+          <AdBanner 
+            layout="vertical"
+            tag="추천 상품"
+            title="우리아이 맞춤 수면등"
+            description="은은한 빛으로 수면 유도"
+            imageUrl="https://images.unsplash.com/photo-1517705008128-361805f42e86?auto=format&fit=crop&w=180&q=80"
+            linkUrl="#"
+          />
+        </StickyWrapper>
+      </div>
+
+      <div style={{ ...S.container, margin: 0, padding: '20px 0' }}>
       {/* ── PAGE 1 ── */}
       <div style={S.pageBox}>
         {/* Header */}
@@ -299,6 +371,15 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta }) => {
 
       {/* ── PAGE 2 ── */}
       <div style={S.pageBox}>
+        {/* 중간 광고 영역 (그래프와 가이드 사이) */}
+        <AdBanner 
+          tag="SPONSORED"
+          title="안전하고 포근한 수면 공간, 올바른 온도부터"
+          description="우리 아이의 편안한 통잠을 위한 스마트 수면 온도 조절기. 지금 확인해 보세요."
+          imageUrl="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=150&q=80"
+          linkUrl="#"
+        />
+
         {/* AI Solution */}
         {sleep_guide && (
           <div>
@@ -336,6 +417,25 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta }) => {
               </div>
             </div>
           )}
+
+          {/* 주차별 콘텐츠 (200주 대응 플레이스홀더) */}
+          <div style={{ marginTop: 24, padding: '24px 20px', background: 'var(--white)', border: '1px solid var(--gray-lt)', borderRadius: 8 }}>
+            <div style={{ ...S.secTitle, borderBottom: 'none', marginBottom: 4, color: 'var(--accent-1)' }}>이번 주 맞춤 추천 (Weekly Tips)</div>
+            <div style={{ fontSize: 13, color: 'var(--black)', fontWeight: 500, marginBottom: 8 }}>{meta?.ageMonths ? `${meta.ageMonths}개월` : '해당 주차'} 아이를 위한 필수 리스트</div>
+            <div style={{ fontSize: 11, color: 'var(--gray-dark)', lineHeight: 1.6, marginBottom: 16 }}>
+              향후 백엔드에서 제공되는 주차별 의학/건강 정보 및 상품 추천 큐레이션(최대 200주치)이 노출되는 영역입니다. 
+            </div>
+            {/* 플레이스홀더 아이템 목록 */}
+            <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
+              {[1, 2, 3].map(item => (
+                <div key={item} style={{ width: 120, flexShrink: 0, padding: 12, background: 'var(--surface)', borderRadius: 8 }}>
+                  <div style={{ width: '100%', height: 60, background: 'var(--gray-lt)', borderRadius: 4, marginBottom: 8 }} />
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--black)', marginBottom: 4 }}>추천 콘텐츠 {item}</div>
+                  <div style={{ fontSize: 9, color: 'var(--gray-mut)' }}>관련 정보 및 제품 보기</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -343,6 +443,20 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta }) => {
       <div style={S.footer}>
         <span>© 2026 MOM-I INTELLIGENCE. ALL RIGHTS RESERVED.</span>
         {meta?.generated && <span>ISSUED: {meta.generated}</span>}
+      </div>
+    </div> {/* End of S.container */}
+      {/* 오른쪽 사이드 광고 */}
+      <div className="side-ad" style={{ zIndex: 10 }}>
+        <StickyWrapper>
+          <AdBanner 
+            layout="vertical"
+            tag="SPONSORED"
+            title="프리미엄 기저귀 특가"
+            description="밤새 보송보송하게 통잠을 도와주는 기저귀"
+            imageUrl="https://images.unsplash.com/photo-1522771930-78848d9293e8?auto=format&fit=crop&w=180&q=80"
+            linkUrl="#"
+          />
+        </StickyWrapper>
       </div>
     </div>
   );
