@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import ReportBody from '../components/report/ReportBody';
+import ReportView from '../components/ReportView';
 import { generateReport } from '../lib/api';
 import { exportPdf } from '../lib/pdf';
 import type { ReportJson, SleepInput } from '../types/report';
@@ -51,6 +52,7 @@ export default function Demo() {
   const [statusCls, setStatusCls] = useState('');
   const [loading,   setLoading]   = useState(false);
   const [pdfLoading,setPdfLoading]= useState(false);
+  const [viewMode, setViewMode] = useState<'mobile' | 'pc'>('mobile');
 
   function updateSleep(i: number, key: keyof SleepRow, val: number) {
     setSleep(prev => prev.map((r, idx) => idx === i ? { ...r, [key]: val } : r));
@@ -230,25 +232,45 @@ export default function Demo() {
 
         {/* 오른쪽 리포트 패널 */}
         <div className="panel-right">
-          <div className="a4">
+          {report && meta && (
+            <div className="week-tabs" style={{ marginBottom: 12 }}>
+              <button
+                className={`week-tab ${viewMode === 'mobile' ? 'active' : ''}`}
+                onClick={() => setViewMode('mobile')}
+              >
+                모바일 보기
+              </button>
+              <button
+                className={`week-tab ${viewMode === 'pc' ? 'active' : ''}`}
+                onClick={() => setViewMode('pc')}
+              >
+                PC 보기
+              </button>
+            </div>
+          )}
+          <div className={viewMode === 'pc' ? '' : 'a4'}>
             {report && meta ? (
-              <>
-                <div className="rep-header">
-                  <div>
-                    <div className="brand-name">Mom-i</div>
-                    <div className="brand-sub">프리미엄 수면 교육 가이드</div>
+              viewMode === 'mobile' ? (
+                <>
+                  <div className="rep-header">
+                    <div>
+                      <div className="brand-name">Mom-i</div>
+                      <div className="brand-sub">프리미엄 수면 교육 가이드</div>
+                    </div>
+                    <div className="header-info">
+                      <div className="header-main">아기 ({meta.ageMonths}개월) · {meta.weekNum}주차</div>
+                      <div className="header-sub">{meta.weekStart} ~ {meta.weekEnd}</div>
+                    </div>
                   </div>
-                  <div className="header-info">
-                    <div className="header-main">아기 ({meta.ageMonths}개월) · {meta.weekNum}주차</div>
-                    <div className="header-sub">{meta.weekStart} ~ {meta.weekEnd}</div>
+                  <ReportBody rj={report} showTrend={false} />
+                  <div className="rep-footer">
+                    <span>Mom-i © 2026 · 본 가이드라인은 의학적 진단을 대체하지 않습니다.</span>
+                    <span>생성일: {meta.generated}</span>
                   </div>
-                </div>
-                <ReportBody rj={report} showTrend={false} />
-                <div className="rep-footer">
-                  <span>Mom-i © 2026 · 본 가이드라인은 의학적 진단을 대체하지 않습니다.</span>
-                  <span>생성일: {meta.generated}</span>
-                </div>
-              </>
+                </>
+              ) : (
+                <ReportView data={report} meta={meta} />
+              )
             ) : (
               <div className="placeholder">
                 <div className="ph-icon">🌙</div>

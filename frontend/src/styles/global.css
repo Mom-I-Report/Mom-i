@@ -158,3 +158,43 @@ input:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px 
 .week-tab { padding: 5px 14px; border: 1px solid var(--border); border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; background: var(--white); color: var(--slate); transition: all .15s; font-family: inherit; }
 .week-tab:hover  { border-color: var(--purple); color: var(--purple); background: var(--purple-lt); }
 .week-tab.active { background: var(--purple); color: #fff; border-color: var(--purple); }
+
+/* PC 리포트 보기용 사이드 광고 레이아웃 */
+.side-ad-container {
+  display: grid;
+  grid-template-columns: minmax(0, 430px);
+  justify-content: center;
+  gap: 24px;
+  max-width: 1250px;
+  margin: 0 auto;
+  padding: 0 20px;
+  align-items: start;
+}
+
+.side-ad {
+  display: none;
+  position: -webkit-sticky;
+  position: sticky;
+  top: 24px;
+  height: max-content;
+  z-index: 10;
+}
+
+@media (min-width: 1250px) {
+  .side-ad-container {
+    grid-template-columns: 180px minmax(0, 430px) 180px;
+  }
+  .side-ad {
+    display: block;
+  }
+}
+
+@media print {
+  .side-ad {
+    display: none !important;
+  }
+  .side-ad-container {
+    padding: 0 !important;
+    display: block !important;
+  }
+}

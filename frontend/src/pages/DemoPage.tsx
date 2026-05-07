@@ -52,6 +52,7 @@ const DemoPage: React.FC = () => {
   const [isDummy, setIsDummy] = useState(true); // 현재 더미 데이터인지 여부
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [viewMode, setViewMode] = useState<'mobile' | 'pc'>('mobile');
 
   // 폼 상태
   const [serNo, setSerNo] = useState('');
@@ -233,6 +234,36 @@ const DemoPage: React.FC = () => {
           >
             🖨️ PDF 저장
           </button>
+          <div style={{ display: 'flex', gap: 8, marginTop: '-4px' }}>
+            <button
+              type="button"
+              className="btn-primary"
+              style={{
+                flex: 1,
+                padding: '10px 12px',
+                background: viewMode === 'mobile' ? 'var(--black)' : 'transparent',
+                border: '1px solid var(--gray-lt)',
+                color: viewMode === 'mobile' ? '#fff' : 'var(--gray-dark)',
+              }}
+              onClick={() => setViewMode('mobile')}
+            >
+              모바일 보기
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              style={{
+                flex: 1,
+                padding: '10px 12px',
+                background: viewMode === 'pc' ? 'var(--black)' : 'transparent',
+                border: '1px solid var(--gray-lt)',
+                color: viewMode === 'pc' ? '#fff' : 'var(--gray-dark)',
+              }}
+              onClick={() => setViewMode('pc')}
+            >
+              PC 보기
+            </button>
+          </div>
 
           {error && (
             <div style={{ padding: '10px 12px', background: 'var(--accent-2-lt)', color: 'var(--accent-2)', borderRadius: '8px', fontSize: '12px', lineHeight: 1.5 }}>
@@ -249,7 +280,19 @@ const DemoPage: React.FC = () => {
               PREVIEW MODE — 더미 데이터 표시 중. AI 리포트 생성 버튼을 누르면 실제 데이터로 교체됩니다.
             </div>
           )}
-          <ReportView data={reportData} meta={reportMeta} />
+          {viewMode === 'pc' ? (
+            <ReportView
+              data={reportData}
+              meta={reportMeta}
+              hideSideAds={true}
+              mode="split"
+            />
+          ) : (
+            <ReportView
+              data={reportData}
+              meta={reportMeta}
+            />
+          )}
         </div>
 
       </div>

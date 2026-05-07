@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import ReportBody from '../components/report/ReportBody';
+import ReportView from '../components/ReportView';
 import { fetchDevices, fetchDeviceReports } from '../lib/api';
 import { fmt, fmtDate } from '../lib/utils';
 import type { Device, DeviceReport, ReportJson } from '../types/report';
@@ -12,6 +13,7 @@ export default function Admin() {
   const [reports,     setReports]     = useState<DeviceReport[]>([]);
   const [selectedSer, setSelectedSer] = useState<string | null>(null);
   const [currentTab,  setCurrentTab]  = useState(0);
+  const [viewMode,    setViewMode]    = useState<'mobile' | 'pc'>('mobile');
   const [detailState, setDetailState] = useState<'idle' | 'loading' | 'error'>('idle');
   const [detailError, setDetailError] = useState('');
 
@@ -134,8 +136,25 @@ export default function Admin() {
                   ))}
                 </div>
 
+                <div className="week-tabs" style={{ marginTop: -4 }}>
+                  <button
+                    className={`week-tab ${viewMode === 'mobile' ? 'active' : ''}`}
+                    onClick={() => setViewMode('mobile')}
+                  >
+                    모바일 보기
+                  </button>
+                  <button
+                    className={`week-tab ${viewMode === 'pc' ? 'active' : ''}`}
+                    onClick={() => setViewMode('pc')}
+                  >
+                    PC 보기
+                  </button>
+                </div>
+
                 {currentReport && (
-                  <ReportBody rj={currentReport} showTrend={true} />
+                  viewMode === 'mobile'
+                    ? <ReportBody rj={currentReport} showTrend={true} />
+                    : <ReportView data={currentReport} />
                 )}
               </>
             )}

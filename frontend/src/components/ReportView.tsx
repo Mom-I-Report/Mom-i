@@ -6,6 +6,9 @@ import { chartColors } from './charts/ChartSetup';
 
 interface ReportViewProps {
   data: any;
+  mode?: 'default' | 'split';
+  hideSideAds?: boolean;
+  contentMaxWidth?: number;
   meta?: {
     ageMonths?: number;
     weekNum?: number;
@@ -80,7 +83,7 @@ const StickyWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   );
 };
 
-const ReportView: React.FC<ReportViewProps> = ({ data, meta }) => {
+const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', hideSideAds = false, contentMaxWidth = 430 }) => {
   if (!data) return null;
 
   const { summary, breath, body_temp, daily, daily_stats, ai_comment, sleep_guide, age_kick } = data;
@@ -198,7 +201,7 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta }) => {
   };
 
   const S: Record<string, React.CSSProperties> = {
-    container: { maxWidth: 430, margin: '0 auto', background: 'var(--bg-color)', display: 'flex', flexDirection: 'column' },
+    container: { maxWidth: contentMaxWidth, width: '100%', margin: '0 auto', background: 'var(--bg-color)', display: 'flex', flexDirection: 'column' },
     pageBox: { padding: '32px 24px', display: 'flex', flexDirection: 'column', gap: 24 },
     header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: 20, borderBottom: '1px solid var(--black)' },
     brandName: { fontFamily: 'Inter, sans-serif', fontSize: 18, fontWeight: 500, color: 'var(--black)', letterSpacing: 2, textTransform: 'uppercase' as const, lineHeight: 1.2 },
@@ -252,25 +255,8 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta }) => {
     );
   };
 
-  return (
-    <div className="side-ad-container">
-      {/* 왼쪽 사이드 광고 */}
-      <div className="side-ad" style={{ zIndex: 10 }}>
-        <StickyWrapper>
-          <AdBanner 
-            layout="vertical"
-            tag="추천 상품"
-            title="우리아이 맞춤 수면등"
-            description="은은한 빛으로 수면 유도"
-            imageUrl="https://images.unsplash.com/photo-1517705008128-361805f42e86?auto=format&fit=crop&w=180&q=80"
-            linkUrl="#"
-          />
-        </StickyWrapper>
-      </div>
-
-      <div style={{ ...S.container, margin: 0, padding: '20px 0' }}>
-      {/* ── PAGE 1 ── */}
-      <div style={S.pageBox}>
+  const pageOne = (
+    <div style={S.pageBox}>
         {/* Header */}
         <div style={S.header}>
           <div>
@@ -368,18 +354,20 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta }) => {
           ) : null}
         </div>
       </div>
+  );
 
-      {/* ── PAGE 2 ── */}
-      <div style={S.pageBox}>
-        {/* 중간 광고 영역 (그래프와 가이드 사이) */}
-        <AdBanner 
-          tag="SPONSORED"
-          title="안전하고 포근한 수면 공간, 올바른 온도부터"
-          description="우리 아이의 편안한 통잠을 위한 스마트 수면 온도 조절기. 지금 확인해 보세요."
-          imageUrl="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=150&q=80"
-          linkUrl="#"
-        />
+  const middleAdBanner = (
+    <AdBanner
+      tag="SPONSORED"
+      title="안전하고 포근한 수면 공간, 올바른 온도부터"
+      description="우리 아이의 편안한 통잠을 위한 스마트 수면 온도 조절기. 지금 확인해 보세요."
+      imageUrl="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=150&q=80"
+      linkUrl="#"
+    />
+  );
 
+  const pageTwoContent = (
+    <div style={S.pageBox}>
         {/* AI Solution */}
         {sleep_guide && (
           <div>
@@ -419,7 +407,7 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta }) => {
           )}
 
           {/* 주차별 콘텐츠 (200주 대응 플레이스홀더) */}
-          <div style={{ marginTop: 24, padding: '24px 20px', background: 'var(--white)', border: '1px solid var(--gray-lt)', borderRadius: 8 }}>
+          <div style={{ marginTop: mode === 'split' ? 8 : 24, padding: '24px 20px', background: 'var(--white)', border: '1px solid var(--gray-lt)', borderRadius: 8 }}>
             <div style={{ ...S.secTitle, borderBottom: 'none', marginBottom: 4, color: 'var(--accent-1)' }}>이번 주 맞춤 추천 (Weekly Tips)</div>
             <div style={{ fontSize: 13, color: 'var(--black)', fontWeight: 500, marginBottom: 8 }}>{meta?.ageMonths ? `${meta.ageMonths}개월` : '해당 주차'} 아이를 위한 필수 리스트</div>
             <div style={{ fontSize: 11, color: 'var(--gray-dark)', lineHeight: 1.6, marginBottom: 16 }}>
@@ -427,37 +415,91 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta }) => {
             </div>
             {/* 플레이스홀더 아이템 목록 */}
             <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
-              {[1, 2, 3].map(item => (
-                <div key={item} style={{ width: 120, flexShrink: 0, padding: 12, background: 'var(--surface)', borderRadius: 8 }}>
+              {[
+                { title: '근처 보건소 찾기', desc: '예방접종 일정 및 운영 시간 확인' },
+                { title: '예방접종 체크리스트', desc: '월령별 필수/선택 접종 정리' },
+                { title: '아기 건강 정보', desc: '발열·기침 등 증상별 가이드 보기' },
+              ].map((item, idx) => (
+                <div key={idx} style={{ width: 140, flexShrink: 0, padding: 12, background: 'var(--surface)', borderRadius: 8 }}>
                   <div style={{ width: '100%', height: 60, background: 'var(--gray-lt)', borderRadius: 4, marginBottom: 8 }} />
-                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--black)', marginBottom: 4 }}>추천 콘텐츠 {item}</div>
-                  <div style={{ fontSize: 9, color: 'var(--gray-mut)' }}>관련 정보 및 제품 보기</div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--black)', marginBottom: 4 }}>{item.title}</div>
+                  <div style={{ fontSize: 9, color: 'var(--gray-mut)', lineHeight: 1.4 }}>{item.desc}</div>
                 </div>
               ))}
             </div>
           </div>
         </div>
       </div>
+  );
 
-      {/* Footer */}
-      <div style={S.footer}>
-        <span>© 2026 MOM-I INTELLIGENCE. ALL RIGHTS RESERVED.</span>
-        {meta?.generated && <span>ISSUED: {meta.generated}</span>}
+  const footer = (
+    <div style={S.footer}>
+      <span>© 2026 MOM-I INTELLIGENCE. ALL RIGHTS RESERVED.</span>
+      {meta?.generated && <span>ISSUED: {meta.generated}</span>}
+    </div>
+  );
+
+  if (mode === 'split') {
+    return (
+      <div style={{ maxWidth: 1120, margin: '0 auto', padding: '20px 16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 20, alignItems: 'start' }}>
+          <div style={{ ...S.container, maxWidth: 'none', border: '1px solid var(--gray-lt)', borderRadius: 12, overflow: 'hidden' }}>
+            {pageOne}
+            <div style={{ padding: '0 24px 24px' }}>
+              {middleAdBanner}
+            </div>
+          </div>
+          <div style={{ ...S.container, maxWidth: 'none', border: '1px solid var(--gray-lt)', borderRadius: 12, overflow: 'hidden' }}>
+            {pageTwoContent}
+          </div>
+        </div>
+        <div style={{ ...S.container, maxWidth: 'none', marginTop: 12, border: '1px solid var(--gray-lt)', borderRadius: 12, overflow: 'hidden' }}>
+          {footer}
+        </div>
       </div>
-    </div> {/* End of S.container */}
-      {/* 오른쪽 사이드 광고 */}
-      <div className="side-ad" style={{ zIndex: 10 }}>
-        <StickyWrapper>
-          <AdBanner 
-            layout="vertical"
-            tag="SPONSORED"
-            title="프리미엄 기저귀 특가"
-            description="밤새 보송보송하게 통잠을 도와주는 기저귀"
-            imageUrl="https://images.unsplash.com/photo-1522771930-78848d9293e8?auto=format&fit=crop&w=180&q=80"
-            linkUrl="#"
-          />
-        </StickyWrapper>
+    );
+  }
+
+  return (
+    <div className="side-ad-container">
+      {!hideSideAds && (
+        <div className="side-ad" style={{ zIndex: 10 }}>
+          <StickyWrapper>
+            <AdBanner
+              layout="vertical"
+              tag="추천 상품"
+              title="우리아이 맞춤 수면등"
+              description="은은한 빛으로 수면 유도"
+              imageUrl="https://images.unsplash.com/photo-1517705008128-361805f42e86?auto=format&fit=crop&w=180&q=80"
+              linkUrl="#"
+            />
+          </StickyWrapper>
+        </div>
+      )}
+
+      <div style={{ ...S.container, margin: 0, padding: '20px 0' }}>
+        {pageOne}
+        <div style={S.pageBox}>
+          {middleAdBanner}
+        </div>
+        {pageTwoContent}
+        {footer}
       </div>
+
+      {!hideSideAds && (
+        <div className="side-ad" style={{ zIndex: 10 }}>
+          <StickyWrapper>
+            <AdBanner
+              layout="vertical"
+              tag="SPONSORED"
+              title="프리미엄 기저귀 특가"
+              description="밤새 보송보송하게 통잠을 도와주는 기저귀"
+              imageUrl="https://images.unsplash.com/photo-1522771930-78848d9293e8?auto=format&fit=crop&w=180&q=80"
+              linkUrl="#"
+            />
+          </StickyWrapper>
+        </div>
+      )}
     </div>
   );
 };

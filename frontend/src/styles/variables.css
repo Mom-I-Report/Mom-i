@@ -3,4 +3,15 @@
   --mint: #10B981; --slate: #64748B; --slate-lt: #F8FAFC;
   --navy: #1E293B; --navy-lt: #334155; --border: #E9E3FF; --white: #FFFFFF;
   --red: #DC2626; --amber: #F59E0B;
+  /* ReportView 호환 토큰 */
+  --black: #0F0F0F;
+  --gray-dark: #3A3A3C;
+  --gray-mut: #8E8E93;
+  --gray-lt: #E5E5EA;
+  --bg-color: #FFFFFF;
+  --surface: #F2F2F7;
+  --accent-1: #24614A;
+  --accent-1-lt: #E5EFEB;
+  --accent-2: #A26038;
+  --accent-2-lt: #F6EFEA;
 }
