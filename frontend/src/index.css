@@ -104,17 +104,14 @@ body {
   max-width: 1250px;
   margin: 0 auto;
   padding: 0 20px;
-  /* 핵심: 각 열이 자신의 콘텐츠 높이만큼만 차지하도록 설정해야 sticky가 작동함 */
-  align-items: start; 
+  /* stretch: 양쪽 side-ad 열이 중앙 콘텐츠와 동일한 높이를 가져 시각적 균형 유지 */
+  align-items: stretch;
 }
 
 .side-ad {
   display: none;
-  position: -webkit-sticky;
-  position: sticky;
-  top: 24px;
-  /* 배너가 스크롤을 따라갈 수 있는 트랙(높이) 확보 */
-  height: max-content; 
+  /* position sticky는 StickyWrapper(JS 스크롤 추적)가 대신 처리 */
+  height: 100%;
   z-index: 10;
 }
 

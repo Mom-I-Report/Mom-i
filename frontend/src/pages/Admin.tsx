@@ -1,170 +1,153 @@
-import { useState } from 'react';
-import ReportBody from '../components/report/ReportBody';
+import React, { useState } from 'react';
 import ReportView from '../components/ReportView';
-import { fetchDevices, fetchDeviceReports } from '../lib/api';
-import { fmt, fmtDate } from '../lib/utils';
-import type { Device, DeviceReport, ReportJson } from '../types/report';
 
-export default function Admin() {
-  const [apiKey,      setApiKey]      = useState('dev-local-key');
-  const [devices,     setDevices]     = useState<Device[]>([]);
-  const [authStatus,  setAuthStatus]  = useState('');
-  const [authCls,     setAuthCls]     = useState('');
-  const [reports,     setReports]     = useState<DeviceReport[]>([]);
-  const [selectedSer, setSelectedSer] = useState<string | null>(null);
-  const [currentTab,  setCurrentTab]  = useState(0);
-  const [viewMode,    setViewMode]    = useState<'mobile' | 'pc'>('mobile');
-  const [detailState, setDetailState] = useState<'idle' | 'loading' | 'error'>('idle');
-  const [detailError, setDetailError] = useState('');
+const Admin: React.FC = () => {
+  const [apiKey, setApiKey] = useState('dev-local-key');
+  const [devices, setDevices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  async function handleLoadDevices() {
-    setAuthStatus('불러오는 중...'); setAuthCls('');
+  const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
+  const [reports, setReports] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState(0);
+
+  const loadDevices = async () => {
+    setLoading(true);
+    setError('');
     try {
-      const data = await fetchDevices(apiKey);
-      setDevices(data);
-      setAuthStatus(`기기 ${data.length}개 조회됨`); setAuthCls('ok');
-    } catch (e) {
-      setAuthStatus((e as Error).message); setAuthCls('err');
+      const res = await fetch('http://localhost:8000/api/v1/admin/devices', {
+        headers: { 'X-API-Key': apiKey },
+      });
+      if (res.status === 403) throw new Error('API Key가 올바르지 않습니다.');
+      if (!res.ok) throw new Error(`오류 ${res.status}`);
+      setDevices(await res.json());
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
-  async function handleSelectDevice(serNo: string) {
-    setSelectedSer(serNo);
-    setCurrentTab(0);
-    setDetailState('loading');
+  const loadDeviceReports = async (serNo: string) => {
+    setSelectedDevice(serNo);
     setReports([]);
+    setActiveTab(0);
     try {
-      const data = await fetchDeviceReports(apiKey, serNo);
-      setReports(data);
-      setDetailState('idle');
-    } catch (e) {
-      setDetailError((e as Error).message);
-      setDetailState('error');
+      const res = await fetch(`http://localhost:8000/api/v1/admin/devices/${encodeURIComponent(serNo)}/reports`, {
+        headers: { 'X-API-Key': apiKey },
+      });
+      if (!res.ok) throw new Error(`리포트 조회 오류 ${res.status}`);
+      setReports(await res.json());
+    } catch (e: any) {
+      console.error(e);
     }
-  }
+  };
 
-  const currentReport: ReportJson | null = reports[currentTab]?.report_json ?? null;
+  const formatDate = (s: string | null) => (s ? s.slice(0, 10) : '-');
 
   return (
-    <>
-      <div className="page-header">
-        <h1>Mom-i 관리자</h1>
-        <a href="/demo.html">🧪 AI 테스트</a>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-color)' }}>
+      <div style={{ height: '60px', background: 'var(--black)', color: '#fff', display: 'flex', alignItems: 'center', padding: '0 24px', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'Outfit', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          MOM-I ADMIN
+          <a href="/demo.html" style={{ color: '#fff', textDecoration: 'none', fontSize: '13px', background: 'var(--charcoal)', padding: '4px 12px', borderRadius: '20px' }}>🧪 AI 테스트</a>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <span style={{ fontSize: '12px', color: 'var(--gray-mut)' }}>API Key:</span>
+          <input
+            type="text"
+            value={apiKey}
+            onChange={e => setApiKey(e.target.value)}
+            style={{ padding: '6px 12px', borderRadius: '4px', border: 'none', background: 'var(--charcoal)', color: '#fff', fontSize: '13px' }}
+          />
+          <button
+            onClick={loadDevices}
+            style={{ padding: '6px 16px', background: 'var(--accent-1)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
+          >
+            {loading ? '조회 중...' : '기기 목록 조회'}
+          </button>
+        </div>
       </div>
 
-      <div className="auth-bar">
-        <input
-          type="password"
-          value={apiKey}
-          onChange={e => setApiKey(e.target.value)}
-          placeholder="X-API-Key 입력"
-        />
-        <button onClick={handleLoadDevices}>기기 목록 불러오기</button>
-        <span className={`status-msg ${authCls}`}>{authStatus}</span>
-      </div>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <div style={{ width: '380px', borderRight: '1px solid var(--gray-lt)', background: 'var(--surface)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '20px', borderBottom: '1px solid var(--gray-lt)' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: 700 }}>가입된 기기 목록</h2>
+            {error && <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--accent-2)' }}>{error}</div>}
+          </div>
 
-      <div className="layout">
-        {/* 왼쪽: 기기 목록 */}
-        <div className="panel-left admin-panel-left">
-          <div className="card">
-            <div className="card-title">기기 목록 (ser_no)</div>
+          <div style={{ flex: 1, overflowY: 'auto' }}>
             {devices.length === 0 ? (
-              <div className="empty">위 버튼으로 기기 목록을 불러오세요.</div>
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--gray-mut)', fontSize: '14px' }}>목록이 비어있습니다.</div>
             ) : (
-              <table className="device-table">
-                <thead>
-                  <tr>
-                    <th>ser_no</th><th>구독 시작일</th><th>마지막 리포트</th><th>수</th><th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {devices.map(d => (
-                    <tr key={d.ser_no} className={selectedSer === d.ser_no ? 'active' : ''}>
-                      <td><span className="ser-badge">{d.ser_no}</span></td>
-                      <td>{fmtDate(d.subscribed_at)}</td>
-                      <td>{fmt(d.last_report_at)}</td>
-                      <td><span className="count-badge">{d.report_count}</span></td>
-                      <td>
-                        <button
-                          className={`detail-btn ${selectedSer === d.ser_no ? 'active' : ''}`}
-                          onClick={() => handleSelectDevice(d.ser_no)}
-                        >
-                          상세보기
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              devices.map((d: any) => (
+                <div
+                  key={d.ser_no}
+                  onClick={() => loadDeviceReports(d.ser_no)}
+                  style={{
+                    padding: '16px 20px',
+                    borderBottom: '1px solid var(--gray-lt)',
+                    background: selectedDevice === d.ser_no ? '#fff' : 'transparent',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--black)', marginBottom: '4px' }}>{d.ser_no}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--gray-dark)' }}>
+                      최근 리포트: {formatDate(d.last_report_at)} ({d.report_count}건)
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '18px', color: 'var(--gray-mut)' }}>›</span>
+                </div>
+              ))
             )}
           </div>
         </div>
 
-        {/* 오른쪽: 리포트 상세 */}
-        <div className="panel-right">
-          <div className="card detail-panel">
-            {detailState === 'idle' && !selectedSer && (
-              <div className="placeholder" style={{ height: 300 }}>기기를 선택하면 최근 3주치 리포트를 표시합니다.</div>
-            )}
-
-            {detailState === 'loading' && (
-              <div className="placeholder" style={{ height: 300 }}>불러오는 중...</div>
-            )}
-
-            {detailState === 'error' && (
-              <div className="placeholder" style={{ height: 300, color: 'var(--red)', opacity: 1 }}>{detailError}</div>
-            )}
-
-            {detailState === 'idle' && selectedSer && reports.length > 0 && (
-              <>
-                <div className="detail-header">
-                  <div>
-                    <div className="detail-ser">{selectedSer}</div>
-                    <div className="detail-sub">생성일: {fmt(reports[currentTab]?.created_at)}</div>
-                  </div>
-                </div>
-
-                <div className="week-tabs">
-                  {reports.map((r, i) => (
-                    <button
-                      key={r.report_id}
-                      className={`week-tab ${i === currentTab ? 'active' : ''}`}
-                      onClick={() => setCurrentTab(i)}
-                    >
-                      {r.report_json?.week_label ?? fmtDate(r.week_start)}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="week-tabs" style={{ marginTop: -4 }}>
+        <div style={{ flex: 1, background: 'var(--gray-lt)', overflowY: 'auto', padding: '24px' }}>
+          {!selectedDevice ? (
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gray-mut)' }}>
+              좌측에서 기기를 선택하면 최근 3주치 리포트를 표시합니다.
+            </div>
+          ) : reports.length === 0 ? (
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gray-mut)' }}>
+              생성된 리포트가 없습니다.
+            </div>
+          ) : (
+            <div>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+                {reports.map((r: any, idx: number) => (
                   <button
-                    className={`week-tab ${viewMode === 'mobile' ? 'active' : ''}`}
-                    onClick={() => setViewMode('mobile')}
+                    key={r.report_id}
+                    onClick={() => setActiveTab(idx)}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: activeTab === idx ? 'var(--black)' : 'var(--bg-color)',
+                      color: activeTab === idx ? '#fff' : 'var(--charcoal)',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
                   >
-                    모바일 보기
+                    {formatDate(r.week_start)}
                   </button>
-                  <button
-                    className={`week-tab ${viewMode === 'pc' ? 'active' : ''}`}
-                    onClick={() => setViewMode('pc')}
-                  >
-                    PC 보기
-                  </button>
-                </div>
-
-                {currentReport && (
-                  viewMode === 'mobile'
-                    ? <ReportBody rj={currentReport} showTrend={true} />
-                    : <ReportView data={currentReport} />
+                ))}
+              </div>
+              <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--gray-lt)' }}>
+                {reports[activeTab] && (
+                  <ReportView data={reports[activeTab].report_json} />
                 )}
-              </>
-            )}
-
-            {detailState === 'idle' && selectedSer && reports.length === 0 && (
-              <div className="placeholder" style={{ height: 300 }}>리포트가 없습니다.</div>
-            )}
-          </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-    </>
+    </div>
   );
-}
+};
+
+export default Admin;

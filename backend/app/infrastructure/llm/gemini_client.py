@@ -47,7 +47,7 @@ _MODEL_NAME = "gemini-2.5-flash"
 # ── 상수 ─────────────────────────────────────────────────────────────────────
 
 # JSON 응답에 반드시 포함되어야 하는 최상위 필드
-_REQUIRED_FIELDS = ["ai_comment", "sleep_guide", "age_kick"]
+_REQUIRED_FIELDS = ["ai_comment", "sleep_guide", "age_kick", "parent_message"]
 
 # sleep_guide 필수 하위 필드
 _SLEEP_GUIDE_FIELDS = ["method_name", "title", "reason", "steps", "kick_action"]
@@ -76,6 +76,8 @@ def _validate_json(data: dict) -> list[str]:
         missing += [f"sleep_guide.{f}" for f in _SLEEP_GUIDE_FIELDS if f not in data["sleep_guide"]]
     if "age_kick" in data and isinstance(data["age_kick"], dict):
         missing += [f"age_kick.{f}" for f in _AGE_KICK_FIELDS if f not in data["age_kick"]]
+    if "parent_message" in data and not isinstance(data["parent_message"], str):
+        missing.append("parent_message (string 타입이어야 함)")
     return missing
 
 

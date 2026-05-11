@@ -57,10 +57,11 @@ _BREATH_RANGES = [
     (999, 20, 30),  # 24개월 이상
 ]
 
-# ── 체온 상태 판정 기준 (°C) ────────────────────────────────────────────────
-_BODY_TEMP_NORMAL_MAX  = 37.4   # 이하: 정상
-_BODY_TEMP_CAUTION_MAX = 37.9   # 이하: 미열 주의
-# 38.0 이상: 발열 의심
+# ── 체온 상태 판정 기준 (EMTAKE Temp = 델타값, 기준치 대비 상승분 °C) ──────
+# 릴레이 서버는 절대 체온이 아닌 상승 델타값을 제공한다.
+_BODY_TEMP_NORMAL_MAX  = 0.9   # 이하: 정상 (1°C 미만 상승)
+_BODY_TEMP_CAUTION_MAX = 1.4   # 이하: 미열 주의 (1~1.5°C 상승)
+# 1.5°C 이상 상승: 발열 의심
 
 
 # ── 내부 헬퍼 함수 ──────────────────────────────────────────────────────────
@@ -178,10 +179,10 @@ def _build_body_temp_summary(req: GenerateReportRequest) -> BodyTempSummary:
       수면 중 최고 체온(body_temp_max)을 기준으로 판정.
       최고 체온이 가장 임상적 위험 신호에 가깝기 때문.
 
-    status 값:
-      "정상"       : 37.4°C 이하
-      "미열 주의"  : 37.5~37.9°C
-      "발열 의심"  : 38.0°C 이상 → AI가 소아과 상담 권장 문구 출력
+    status 값 (델타 기준):
+      "정상"       : 상승 0.9°C 이하
+      "미열 주의"  : 상승 1.0~1.4°C
+      "발열 의심"  : 상승 1.5°C 이상 → AI가 소아과 상담 권장 문구 출력
     """
     bt = req.body_temp
     return BodyTempSummary(
@@ -451,9 +452,10 @@ async def generate_report(db: Session, req: GenerateReportRequest) -> GenerateRe
     # Step 5 — AI 조언 생성 (비동기, JSON dict 반환)
     ai_context  = _build_ai_context(req, summary, breath_summary, body_temp_summary, prev_data)
     ai_result   = await generate_insight(ai_context)
-    ai_comment  = ai_result.get("ai_comment", [])
-    sleep_guide = SleepGuide.model_validate(ai_result["sleep_guide"]) if ai_result.get("sleep_guide") else None
-    age_kick    = AgeKick.model_validate(ai_result["age_kick"]) if ai_result.get("age_kick") else None
+    ai_comment     = ai_result.get("ai_comment", [])
+    sleep_guide    = SleepGuide.model_validate(ai_result["sleep_guide"]) if ai_result.get("sleep_guide") else None
+    age_kick       = AgeKick.model_validate(ai_result["age_kick"]) if ai_result.get("age_kick") else None
+    parent_message = ai_result.get("parent_message")
 
     # Step 6 — 응답 객체 생성 및 저장
     week_label  = _week_label(req.week_start)
@@ -470,6 +472,7 @@ async def generate_report(db: Session, req: GenerateReportRequest) -> GenerateRe
         ai_comment=ai_comment,
         sleep_guide=sleep_guide,
         age_kick=age_kick,
+        parent_message=parent_message,
     )
 
     report_repo.save_report(

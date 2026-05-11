@@ -86,7 +86,7 @@ const StickyWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', hideSideAds = false, contentMaxWidth = 430 }) => {
   if (!data) return null;
 
-  const { summary, breath, body_temp, daily, daily_stats, ai_comment, sleep_guide, age_kick } = data;
+  const { summary, breath, body_temp, daily, daily_stats, ai_comment, sleep_guide, age_kick, parent_message } = data;
 
   // daily: 백엔드 응답 ({ day, sleep_h, restless_min } 또는 { date, sleep_min, restless_min })
   // daily_stats: 더미 데이터 형태 ({ day, sleep_h, restless_min })
@@ -141,12 +141,13 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
   const radarOptions: any = {
     responsive: true,
     maintainAspectRatio: false,
+    layout: { padding: { top: 10, bottom: 10, left: 12, right: 12 } },
     scales: {
       r: {
         min: 0, max: 100,
         ticks: { display: false },
         grid: { color: chartColors.gridLight },
-        pointLabels: { font: { size: 11, family: 'Noto Sans KR', weight: '600' }, color: chartColors.textDark },
+        pointLabels: { font: { size: 9, family: 'Noto Sans KR', weight: '600' }, color: chartColors.textDark },
       },
     },
     plugins: { legend: { display: false } },
@@ -211,9 +212,9 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
     headerSub: { fontSize: 10, color: 'var(--gray-mut)', marginTop: 6, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase' as const, letterSpacing: 0.5 },
     secTitle: { fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600, color: 'var(--gray-mut)', textTransform: 'uppercase' as const, letterSpacing: 1.5, marginBottom: 12, borderBottom: '1px solid var(--gray-lt)', paddingBottom: 8 },
     compactStats: { display: 'flex', flexDirection: 'column' as const, gap: 8, marginBottom: 20 },
-    cStatRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'var(--surface)', borderRadius: 8 },
-    cStatLabel: { fontFamily: 'Inter, sans-serif', fontSize: 9, color: 'var(--gray-dark)', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.8 },
-    cStatValue: { fontFamily: 'Inter, sans-serif', fontSize: 14, fontWeight: 500, color: 'var(--black)' },
+    cStatRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'var(--surface)', borderRadius: 8, gap: 8 },
+    cStatLabel: { fontFamily: 'Inter, sans-serif', fontSize: 9, color: 'var(--gray-dark)', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.8, flexShrink: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const },
+    cStatValue: { fontFamily: 'Inter, sans-serif', fontSize: 14, fontWeight: 500, color: 'var(--black)', flexShrink: 0, whiteSpace: 'nowrap' as const },
     summaryBox: { marginTop: 16, padding: 20, background: 'var(--black)', color: 'var(--bg-color)', borderRadius: 8, fontSize: 13, lineHeight: 1.7, fontWeight: 300 },
     summaryLabel: { fontFamily: 'Inter, sans-serif', fontSize: 10, fontWeight: 600, color: 'var(--gray-mut)', textTransform: 'uppercase' as const, letterSpacing: 1.5, marginBottom: 8, display: 'block' },
     aiSolTitle: { fontSize: 16, fontWeight: 500, color: 'var(--black)', marginBottom: 12, lineHeight: 1.4 },
@@ -358,11 +359,11 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
 
   const middleAdBanner = (
     <AdBanner
-      tag="SPONSORED"
-      title="안전하고 포근한 수면 공간, 올바른 온도부터"
-      description="우리 아이의 편안한 통잠을 위한 스마트 수면 온도 조절기. 지금 확인해 보세요."
-      imageUrl="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=150&q=80"
-      linkUrl="#"
+      tag="MOM-I"
+      title="맘아이 카메라로 수면을 기록하세요"
+      description="설치 한 번으로 호흡·체온·뒤척임을 자동 측정. 매주 AI 리포트로 아이 수면을 한눈에 확인하세요."
+      imageUrl="https://www.mom-i.com/img/main01_img_pc.png"
+      linkUrl="https://www.mom-i.com/"
     />
   );
 
@@ -406,28 +407,15 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
             </div>
           )}
 
-          {/* 주차별 콘텐츠 (200주 대응 플레이스홀더) */}
-          <div style={{ marginTop: mode === 'split' ? 8 : 24, padding: '24px 20px', background: 'var(--white)', border: '1px solid var(--gray-lt)', borderRadius: 8 }}>
-            <div style={{ ...S.secTitle, borderBottom: 'none', marginBottom: 4, color: 'var(--accent-1)' }}>이번 주 맞춤 추천 (Weekly Tips)</div>
-            <div style={{ fontSize: 13, color: 'var(--black)', fontWeight: 500, marginBottom: 8 }}>{meta?.ageMonths ? `${meta.ageMonths}개월` : '해당 주차'} 아이를 위한 필수 리스트</div>
-            <div style={{ fontSize: 11, color: 'var(--gray-dark)', lineHeight: 1.6, marginBottom: 16 }}>
-              향후 백엔드에서 제공되는 주차별 의학/건강 정보 및 상품 추천 큐레이션(최대 200주치)이 노출되는 영역입니다. 
+          {/* 부모 응원 메시지 */}
+          {parent_message && (
+            <div style={{ padding: '16px 20px', background: 'var(--accent-1-lt)', borderRadius: 12, borderLeft: '4px solid var(--accent-1)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-1)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>이번 주 응원 메시지</div>
+              <div style={{ fontSize: 13, color: 'var(--black)', lineHeight: 1.7 }}>{parent_message}</div>
             </div>
-            {/* 플레이스홀더 아이템 목록 */}
-            <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
-              {[
-                { title: '근처 보건소 찾기', desc: '예방접종 일정 및 운영 시간 확인' },
-                { title: '예방접종 체크리스트', desc: '월령별 필수/선택 접종 정리' },
-                { title: '아기 건강 정보', desc: '발열·기침 등 증상별 가이드 보기' },
-              ].map((item, idx) => (
-                <div key={idx} style={{ width: 140, flexShrink: 0, padding: 12, background: 'var(--surface)', borderRadius: 8 }}>
-                  <div style={{ width: '100%', height: 60, background: 'var(--gray-lt)', borderRadius: 4, marginBottom: 8 }} />
-                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--black)', marginBottom: 4 }}>{item.title}</div>
-                  <div style={{ fontSize: 9, color: 'var(--gray-mut)', lineHeight: 1.4 }}>{item.desc}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
+
+          {/* Weekly Tips — 추후 백엔드 연동 예정, 현재 미노출 */}
         </div>
       </div>
   );
@@ -467,11 +455,11 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
           <StickyWrapper>
             <AdBanner
               layout="vertical"
-              tag="추천 상품"
-              title="우리아이 맞춤 수면등"
-              description="은은한 빛으로 수면 유도"
-              imageUrl="https://images.unsplash.com/photo-1517705008128-361805f42e86?auto=format&fit=crop&w=180&q=80"
-              linkUrl="#"
+              tag="MOM-I"
+              title="맘아이 카메라"
+              description="호흡·체온·뒤척임을 실시간으로 감지하는 AI 수면 카메라"
+              imageUrl="https://www.mom-i.com/img/main06_img1.jpg"
+              linkUrl="https://www.mom-i.com/"
             />
           </StickyWrapper>
         </div>
@@ -491,11 +479,11 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
           <StickyWrapper>
             <AdBanner
               layout="vertical"
-              tag="SPONSORED"
-              title="프리미엄 기저귀 특가"
-              description="밤새 보송보송하게 통잠을 도와주는 기저귀"
-              imageUrl="https://images.unsplash.com/photo-1522771930-78848d9293e8?auto=format&fit=crop&w=180&q=80"
-              linkUrl="#"
+              tag="MOM-I"
+              title="지금 바로 시작해보세요"
+              description="맘아이 카메라 하나로 아이 수면 걱정 끝"
+              imageUrl="https://www.mom-i.com/img/main10_img1.jpg"
+              linkUrl="https://www.mom-i.com/"
             />
           </StickyWrapper>
         </div>

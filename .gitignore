@@ -3,7 +3,10 @@
 # ══════════════════════════════════════════════════════
 
 # ── 개인 메모 / 로컬 전용 ─────────────────────────────
-docs/reference/claude-code-guide.md   # 개인 Claude Code 학습 노트
+# 개인 Claude Code 학습 노트
+docs/reference/claude-code-guide.md
+# 릴레이 서버 계정 정보 포함 엑셀
+docs/noh/*.xlsx
 
 # ── OS ────────────────────────────────────────────────
 .DS_Store
@@ -37,6 +40,9 @@ node_modules/
 frontend/dist/
 frontend/.vite/
 *.tsbuildinfo
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
 
 # ── 로그 ──────────────────────────────────────────────
 *.log

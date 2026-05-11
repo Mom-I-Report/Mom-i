@@ -21,7 +21,7 @@ const AdBanner: React.FC<AdBannerProps> = ({ title, description, imageUrl, linkU
         display: 'flex',
         flexDirection: isVertical ? 'column' : 'row',
         alignItems: isVertical ? 'flex-start' : 'center',
-        background: 'var(--white)',
+        background: 'var(--bg-color)',
         border: '1px solid var(--gray-lt)',
         borderRadius: '12px',
         padding: '16px',
