@@ -1,15 +1,116 @@
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-    <title>Mom-i — 영유아 수면 분석 리포트</title>
-    <meta name="description" content="Mom-i 카메라가 수집한 영유아 수면 데이터를 AI로 분석해 주 1회 전문적인 수면 리포트를 제공하는 서비스입니다." />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🌙%3C/text%3E%3C/svg%3E" />
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MOM-I Dev</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: #0F0F0F;
+      color: #fff;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 48px;
+    }
+    .logo {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: #fff;
+    }
+    .logo span {
+      color: #24614A;
+    }
+    .cards {
+      display: flex;
+      gap: 20px;
+    }
+    .card {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-end;
+      width: 220px;
+      height: 260px;
+      padding: 24px;
+      border-radius: 16px;
+      text-decoration: none;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+    }
+    .card.demo {
+      background: #24614A;
+    }
+    .card.admin {
+      background: #1C1C1E;
+      border: 1px solid #2C2C2E;
+    }
+    .card-tag {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      opacity: 0.6;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+    .card-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.2;
+      margin-bottom: 6px;
+    }
+    .card-desc {
+      font-size: 12px;
+      color: rgba(255,255,255,0.55);
+      line-height: 1.5;
+    }
+    .card-arrow {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      font-size: 20px;
+      opacity: 0.4;
+    }
+    .hint {
+      font-size: 12px;
+      color: #3A3A3C;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">MOM<span>-I</span></div>
+
+  <div class="cards">
+    <a class="card demo" href="/demo.html">
+      <span class="card-arrow">↗</span>
+      <div class="card-tag">Report</div>
+      <div class="card-title">AI<br>Demo</div>
+      <div class="card-desc">리포트 생성 및<br>미리보기 테스트</div>
+    </a>
+    <a class="card admin" href="/admin.html">
+      <span class="card-arrow">↗</span>
+      <div class="card-tag">Admin</div>
+      <div class="card-title">Admin<br>Panel</div>
+      <div class="card-desc">기기별 리포트<br>조회 및 관리</div>
+    </a>
+  </div>
+
+  <div class="hint">localhost:5173</div>
+</body>
 </html>

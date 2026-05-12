@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Mom-i 수면 리포트 (Hybrid Ver. - Mobile 2Pages)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* Hybrid Palette: Professional Base + Warm Pastel Accents */
+      --base-dark:   #334155; /* Slate/Charcoal for professional text */
+      --base-navy:   #1E3A8A; /* Trustworthy deep blue for headers */
+      --bg-cream:    #FCFBFA; /* Very soft warm white */
+      --surface:     #FFFFFF; /* Pure white for cards */
+      --border:      #E2E8F0;
+      
+      /* Pastel Warm Accents for Highlights */
+      --pastel-peach: #FFE4E1; /* Soft warm pink/peach */
+      --peach-dark:   #F08080; /* Stronger peach for text/borders */
+      --pastel-mint:  #E8F5E9; /* Soft mint green */
+      --mint-dark:    #4CAF50; /* Stronger green */
+      --pastel-blue:  #E3F2FD; /* Soft baby blue */
+      --blue-dark:    #1976D2; 
+      
+      --text-main: #334155;
+      --text-mut:  #64748B;
+    }
+
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: #F1F5F9;
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── 컨트롤 바 ── */
+    .ctrl {
+      width: 100%; max-width: 430px;
+      background: var(--surface); border-radius: 8px;
+      padding: 12px 16px; margin: 16px 0;
+      display: flex; align-items: center; gap: 10px;
+      border: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .ctrl span { flex:1; font-size:11px; color:var(--text-mut); font-weight:600; letter-spacing: 0.5px; font-family: 'Inter', sans-serif;}
+    .ctrl button {
+      padding: 8px 16px; background: var(--base-navy); color: #fff;
+      border: none; border-radius: 6px; font-size: 11px; font-weight: 600;
+      cursor: pointer; font-family: 'Inter', sans-serif; text-transform: uppercase;
+    }
+
+    /* ── 모바일 기반 앱 뷰 (430px Max) ── */
+    .report-container {
+      width: 100%; max-width: 430px;
+      background: var(--bg-cream);
+      box-shadow: 0 8px 30px rgba(51, 65, 85, 0.08);
+      display: flex; flex-direction: column;
+      border-radius: 16px; overflow: hidden;
+    }
+
+    .page-box { padding: 32px 20px; display: flex; flex-direction: column; gap: 24px; }
+
+    /* ── 헤더 ── */
+    .header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding-bottom: 20px; border-bottom: 2px solid var(--pastel-blue);
+    }
+    .brand-name { font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 800; color: var(--base-navy); letter-spacing: -0.5px; line-height: 1.2; }
+    .brand-sub { font-size: 10px; color: var(--blue-dark); margin-top: 4px; font-weight: 600; letter-spacing: 0.5px;}
+    
+    .header-info { text-align: right; }
+    .header-main { font-size: 14px; font-weight: 700; color: var(--base-dark); }
+    .header-sub  { font-size: 11px; color: var(--text-mut); margin-top: 4px; font-family: 'Inter', sans-serif; }
+
+    /* ── 공통 타이틀 ── */
+    .sec-title { 
+      font-size: 14px; font-weight: 800; color: var(--base-navy); 
+      display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+    }
+    .sec-title::before { content:''; display:block; width:6px; height:18px; background: var(--pastel-peach); border-radius: 4px; }
+
+    /* ── 1. 데이터 영역 ── */
+    .compact-stats { display: flex; gap: 8px; margin-bottom: 20px; }
+    .c-stat-row { 
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
+      padding: 16px 8px; background: var(--surface); border-radius: 12px; 
+      border: 1px solid var(--pastel-blue);
+    }
+    .c-stat-label  { font-family: 'Inter', sans-serif; font-size: 10px; color: var(--blue-dark); font-weight: 600; text-transform: uppercase; }
+    .c-stat-value  { font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 700; color: var(--base-navy); }
+
+    .table-scroll { width: 100%; overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); }
+    .compact-table { width: 100%; min-width: 340px; border-collapse: collapse; text-align: center; font-size: 11px; }
+    .compact-table th { 
+      background: var(--pastel-blue); color: var(--blue-dark); font-weight: 700; 
+      padding: 12px 8px; border-bottom: 1px solid var(--border); font-family: 'Inter', sans-serif;
+    }
+    .compact-table td { padding: 12px 8px; color: var(--base-dark); font-family: 'Inter', sans-serif; font-weight: 500; border-bottom: 1px solid var(--border); }
+    .compact-table tr:last-child td { border-bottom: none; }
+    .compact-table td.td-day { font-family: 'Noto Sans KR', sans-serif; font-weight: 700; color: var(--base-navy); }
+    .td-temp-high { color: var(--peach-dark); font-weight: 700; background: var(--pastel-peach); }
+
+    /* AI 종합 의견 */
+    .summary-box {
+      margin-top: 16px; padding: 20px; background: var(--pastel-blue); 
+      border-radius: 12px; font-size: 13.5px; line-height: 1.7; color: var(--base-dark); font-weight: 500;
+    }
+    .summary-box strong { color: var(--blue-dark); font-weight: 700; }
+
+    /* ── 2. 솔루션 영역 ── */
+    .ai-sol-wrap { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+    .ai-sol-header { padding: 20px 20px 16px; background: var(--bg-cream); border-bottom: 1px dashed var(--border); }
+    .ai-sol-title { font-size: 16px; font-weight: 800; color: var(--base-navy); margin-bottom: 8px; line-height: 1.4; }
+    .ai-sol-reason { font-size: 13px; color: var(--text-mut); line-height: 1.6; }
+    
+    .ai-steps { display: flex; flex-direction: column; padding: 20px; gap: 16px; }
+    .ai-step { display: flex; gap: 14px; }
+    .step-num {
+      font-family: 'Inter', sans-serif; font-weight: 700; font-size: 13px; color: var(--peach-dark);
+      width: 26px; height: 26px; background: var(--pastel-peach); border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .step-text { font-size: 13px; color: var(--base-dark); line-height: 1.6; font-weight: 500; margin-top: 2px;}
+    .step-text strong { color: var(--peach-dark); font-weight: 800; }
+
+    /* ── 광고 지면 (중간 삽입) ── */
+    .ad-banner {
+      width: 100%; height: 90px; background: #FFF3E0; color: #E65100;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Inter', sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 1px;
+      border-radius: 12px; text-transform: uppercase; border: 1px solid #FFE0B2;
+      margin: 8px 0;
+    }
+
+    /* ── 3. 분석 팁 & 킥 (모바일 1단) ── */
+    .grid-wrap { display: flex; flex-direction: column; gap: 20px; }
+    
+    .tip-box { padding: 18px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.02);}
+    .tip-box.caution { border-left: 4px solid var(--peach-dark); }
+    .tip-box.good { border-left: 4px solid var(--mint-dark); }
+    
+    .tip-label { font-size: 11px; font-weight: 700; margin-bottom: 8px; display: inline-block; padding: 4px 8px; border-radius: 4px; }
+    .tip-box.caution .tip-label { background: var(--pastel-peach); color: var(--peach-dark); }
+    .tip-box.good .tip-label { background: var(--pastel-mint); color: var(--mint-dark); }
+    
+    .tip-title { font-size: 14px; font-weight: 700; color: var(--base-dark); margin-bottom: 6px; }
+    .tip-text { font-size: 12.5px; color: var(--text-mut); line-height: 1.6; }
+
+    .kick-wrap { padding: 20px; background: var(--pastel-peach); border-radius: 12px; }
+    .kick-title { font-size: 14px; font-weight: 800; color: var(--peach-dark); margin-bottom: 8px; }
+    .kick-text { font-size: 13px; color: var(--base-dark); line-height: 1.7; font-weight: 500; }
+
+    /* ── 푸터 ── */
+    .footer {
+      padding: 24px; border-top: 1px solid var(--border); background: var(--surface);
+      display: flex; flex-direction: column; gap: 8px; text-align: center;
+      font-size: 10px; color: var(--text-mut); font-family: 'Inter', sans-serif;
+    }
+
+    /* ── 🖨️ PDF/인쇄 (A4 사이즈 2페이지 대응) ── */
+    @page { size: A4 portrait; margin: 0; }
+    @media print {
+      body { background: #fff; padding: 0; margin: 0; }
+      .ctrl { display: none; }
+      .ad-banner { display: none; } /* PDF 인쇄 시 광고 제거 */
+      
+      .report-container { width: 210mm; max-width: none; box-shadow: none; border-radius: 0; display: block; margin: 0 auto;}
+      
+      .page-box { 
+        width: 210mm; height: 297mm; 
+        padding: 24mm; box-sizing: border-box; background: var(--bg-cream);
+        page-break-after: always; display: flex; flex-direction: column; overflow: hidden; position: relative;
+      }
+      .page-box:last-child { page-break-after: auto; }
+
+      .table-scroll { overflow: visible; border: none; }
+      .compact-stats { flex-direction: row; }
+      .c-stat-row { flex-direction: row; justify-content: space-between; padding: 16px 24px; }
+      
+      .grid-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+      .footer { flex-direction: row; justify-content: space-between; position: absolute; bottom: 20mm; left: 24mm; right: 24mm; padding: 0; border-top: none; background: transparent;}
+    }
+  </style>
+</head>
+<body>
+
+<div class="ctrl">
+  <span>Hybrid Report (Mobile)</span>
+  <button onclick="window.print()">Export 2 Pages</button>
+</div>
+
+<div class="report-container" id="app"></div>
+
+<script>
+const mockData = {
+  baby:  { name: '민준', ageMonths: 7 },
+  week:  { num: 4, start: '2026.04.09', end: '2026.04.15', generated: '2026.04.15' },
+  ai_summary: '이번 주 평균 수면 시간은 11시간 30분으로 권장량에 약간 못 미칩니다. 특히 수요일의 경우 <strong>높은 실내 온도로 인한 수면 질 저하</strong> 패턴이 관찰되었습니다. 반면, 부모님의 일관된 취침 시간 노력은 매우 안정적입니다.',
+  daily: [
+    { day:'월', sleep:710, temp:22.3, bedtime:'21:30', wake:'06:45', tossTime:'02:15, 05:00', tossCnt:2, tossMin:25 },
+    { day:'화', sleep:745, temp:22.1, bedtime:'21:00', wake:'06:30', tossTime:'03:00', tossCnt:1, tossMin:15 },
+    { day:'수', sleep:630, temp:23.5, bedtime:'22:00', wake:'06:30', tossTime:'01:30, 03:45, 05:10', tossCnt:3, tossMin:55 },
+    { day:'목', sleep:780, temp:21.8, bedtime:'21:15', wake:'06:50', tossTime:'04:20', tossCnt:1, tossMin:10 },
+    { day:'금', sleep:700, temp:22.0, bedtime:'21:30', wake:'06:20', tossTime:'02:40, 04:10', tossCnt:2, tossMin:35 },
+    { day:'토', sleep:785, temp:21.5, bedtime:'21:00', wake:'07:00', tossTime:'03:15', tossCnt:1, tossMin:20 },
+    { day:'일', sleep:690, temp:22.2, bedtime:'21:45', wake:'06:30', tossTime:'01:50, 04:30', tossCnt:2, tossMin:40 },
+  ],
+  sleep_guide: {
+    method_name: '쉬닥법',
+    title: '"쉬닥법"을 활용한 연장 수면 가이드',
+    reason: '수요일 새벽, 실내 온도 상승으로 인해 다시 혼자 잠드는 것(Self-soothing)에 큰 어려움을 겪었습니다. 울리기보다는 부모의 개입을 서서히 줄여나가는 "쉬닥법"이 가장 안전합니다.',
+    steps: [
+      '잠들기 30분 전 방 온도를 <strong>21~22도</strong>로 맞추고 백색소음기를 가동합니다.',
+      '아이가 칭얼거릴 때 바로 안지 마세요. 옆에서 일정한 리듬으로 가슴을 토닥이며 진정시킵니다.',
+      '아이가 <strong>몽롱한 상태일 때 토닥임을 멈추고</strong> 조용히 방을 이탈합니다.'
+    ]
+  },
+  ai_comment: [
+    { type: 'caution', label: '온도 체크', title: '수면 중단 원인: 실내 온도 상승', text: '실내 온도가 23.5도로 오르며 뒤척임이 폭증했습니다. 쾌적 온도는 21~22도입니다.' },
+    { type: 'good', label: '매우 훌륭함', title: '안정적인 취침 시간 확보', text: '일주일 내내 일관된 취침 시간을 지켜주고 계십니다. 현재의 리듬을 유지해 주십시오.' }
+  ],
+  age_kick: {
+    title: '성장 팁: 분리불안 멘탈 케어',
+    text: '인지능력이 발달하며 보호자가 사라지는 것을 두려워합니다. 낮에 "까꿍 놀이"를 자주 하여 부모가 다시 나타난다는 믿음을 심어주세요. 야간 수면 질 향상에 직결됩니다.'
+  }
+};
+
+function fmtMin(m) { const h = Math.floor(m / 60), mm = m % 60; return mm > 0 ? `${h}h ${mm}m` : `${h}h`; }
+function avgNum(arr, k) { return arr.reduce((s, d) => s + d[k], 0) / arr.length; }
+function avgTime(arr, k) {
+  const mins = arr.map(d => { const [h, m] = d[k].split(':').map(Number); return h * 60 + m; });
+  const avg = Math.round(mins.reduce((a, b) => a + b, 0) / mins.length);
+  return `${String(Math.floor(avg / 60) % 24).padStart(2,'0')}:${String(avg % 60).padStart(2,'0')}`;
+}
+
+const d = mockData;
+const avgSleep = Math.round(avgNum(d.daily, 'sleep'));
+const avgTemp  = avgNum(d.daily, 'temp').toFixed(1);
+const avgBed   = avgTime(d.daily, 'bedtime');
+
+document.getElementById('app').innerHTML = `
+  <!-- PAGE 1 -->
+  <div class="page-box">
+    <div class="header">
+      <div>
+        <div class="brand-name">MOM-I REPORT</div>
+        <div class="brand-sub">Premium Sleep Diagnostics</div>
+      </div>
+      <div class="header-info">
+        <div class="header-main">${d.baby.name} (${d.baby.ageMonths}개월)</div>
+        <div class="header-sub">Week ${d.week.num} · ${d.week.start}</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">주간 데이터 요약</div>
+      <div class="compact-stats">
+        <div class="c-stat-row">
+          <span class="c-stat-label">Avg Sleep</span>
+          <span class="c-stat-value">${fmtMin(avgSleep)}</span>
+        </div>
+        <div class="c-stat-row">
+          <span class="c-stat-label">Avg Bedtime</span>
+          <span class="c-stat-value">${avgBed}</span>
+        </div>
+        <div class="c-stat-row">
+          <span class="c-stat-label">Avg Temp</span>
+          <span class="c-stat-value">${avgTemp}°C</span>
+        </div>
+      </div>
+      
+      <div class="table-scroll">
+        <table class="compact-table">
+          <thead>
+            <tr><th>Day</th><th>Sleep Window</th><th>Total Sleep</th><th>Toss & Turn</th><th>Temp</th></tr>
+          </thead>
+          <tbody>
+            ${d.daily.map(day => `
+              <tr>
+                <td class="td-day">${day.day}</td><td>${day.bedtime} - ${day.wake}</td><td>${fmtMin(day.sleep)}</td>
+                <td><strong>${day.tossCnt}</strong> (${day.tossMin}m)</td>
+                <td class="${day.temp >= 23 ? 'td-temp-high' : ''}">${day.temp}°</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="summary-box">
+        <strong>[종합 분석]</strong><br>${d.ai_summary}
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 2 -->
+  <div class="page-box">
+    <div class="ai-sol-wrap">
+      <div class="ai-sol-header">
+        <div class="sec-title">AI 맞춤 솔루션</div>
+        <div class="ai-sol-title">${d.sleep_guide.title}</div>
+        <div class="ai-sol-reason">${d.sleep_guide.reason}</div>
+      </div>
+      <div class="ai-steps">
+        ${d.sleep_guide.steps.map((step, idx) => `
+          <div class="ai-step"><div class="step-num">${idx + 1}</div><div class="step-text">${step}</div></div>
+        `).join('')}
+      </div>
+    </div>
+
+    <!-- 스크롤 중간 네이티브 광고 지면 -->
+    <div class="ad-banner">Mom-i SPONSORED AD PLACEMENT</div>
+
+    <div class="grid-wrap">
+      <div>
+        <div class="sec-title">상세 분석 인사이트</div>
+        ${d.ai_comment.map(tip => `
+          <div class="tip-box ${tip.type}">
+            <span class="tip-label">${tip.label}</span>
+            <div class="tip-title">${tip.title}</div>
+            <div class="tip-text">${tip.text}</div>
+          </div>`).join('')}
+      </div>
+
+      <div>
+        <div class="sec-title">우리아이 발달 케어</div>
+        <div class="kick-wrap">
+          <div class="kick-title">${d.age_kick.title}</div>
+          <div class="kick-text">${d.age_kick.text}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>© 2026 MOM-I. NOT A MEDICAL ADVICE.</span>
+    <span>ISSUED: ${d.week.generated}</span>
+  </div>
+`;
+</script>
+</body>
+</html>

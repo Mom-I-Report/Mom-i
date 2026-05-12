@@ -3,7 +3,12 @@
 # ══════════════════════════════════════════════════════
 
 # ── 개인 메모 / 로컬 전용 ─────────────────────────────
-docs/reference/claude-code-guide.md   # 개인 Claude Code 학습 노트
+# 개인 Claude Code 학습 노트
+docs/reference/claude-code-guide.md
+# 릴레이 서버 계정 정보 포함 엑셀
+docs/noh/*.xlsx
+# 엠테이크 내부 자료 (계정정보·테스트데이터 포함)
+docs/noh/엠테이크/
 
 # ── OS ────────────────────────────────────────────────
 .DS_Store
@@ -19,6 +24,36 @@ desktop.ini
 # ── 환경변수 (절대 커밋 금지) ─────────────────────────
 .env
 backend/.env
+
+# ── Python ────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── Node / Vite ────────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# ── 로그 ──────────────────────────────────────────────
+*.log
+
+# ── 인증서 / 키 ────────────────────────────────────────
+*.pem
+*.key
+*.crt
+*.p12
 
 # ── 기타 ──────────────────────────────────────────────
 *.tmp

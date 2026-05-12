@@ -38,12 +38,12 @@ def save_weekly_data(
         원본 데이터는 ser_no(기기 식별자) 기준으로만 관리한다.
 
     파라미터:
-      sleep_json     : [{date, sleep_min, restless_min}, ...] — 7일치 수면 데이터
-      env_json       : {temp_avg, temp_max, temp_min, db_max, db_avg} — 실내 환경
+      sleep_json     : [{date, sleep_min, restless_min, wakeup_count?, device_status?, sessions?}, ...] — 7일치 수면 데이터
+      env_json       : {temp_avg, temp_max, temp_min, db_max, db_avg, humidity_min?, humidity_max?, humidity_avg?, bright_min?, bright_max?, bright_avg?} — 실내 환경
       event_json     : {cry_count, leave_count} — 이벤트 횟수
       breath_json    : {breath_min, breath_max, breath_avg} — 수면 중 호흡수(회/분)
-      body_temp_json : {body_temp_min, body_temp_max, body_temp_avg} — 체온 상승(°C)
-      monthly_json   : {month_sleep_h, month_restless_h} — 월간 평균 (장기 트렌드용)
+      body_temp_json : {body_temp_min, body_temp_max, body_temp_avg} — 체온 델타값(°C, 기준치 대비 상승분)
+      monthly_json   : {month_sleep_h, month_restless_h, week_sleep_h?, week_restless_h?} — 월간·주간 평균 (장기 트렌드용)
 
     upsert 정책:
       UNIQUE KEY (ser_no, week_start) — 같은 주차 재전송 시 모든 필드 덮어쓰기.
@@ -194,7 +194,7 @@ def get_reports_list(
 ) -> List[GeneratedReport]:
     """
     ser_no 기준 최근 리포트 목록을 최신순으로 조회한다. (카드형 목록용)
-    rolling 삭제 정책(3주)과 무관하게 현재 DB에 있는 데이터를 반환한다.
+    rolling 삭제 정책(5주)과 무관하게 현재 DB에 있는 데이터를 반환한다.
     """
     return (
         db.query(GeneratedReport)
@@ -248,6 +248,52 @@ def get_admin_stats(db: Session) -> dict:
             for r in recent
         ],
     }
+
+
+# ── 관리자 기기 조회 ──────────────────────────────────────────────────────────
+
+def get_all_devices(db: Session) -> list[dict]:
+    """모든 ser_no별 구독 시작일·마지막 리포트일·리포트 수를 반환한다."""
+    rows = (
+        db.query(
+            GeneratedReport.ser_no,
+            func.min(GeneratedReport.week_start).label("subscribed_at"),
+            func.max(GeneratedReport.created_at).label("last_report_at"),
+            func.count(GeneratedReport.id).label("report_count"),
+        )
+        .group_by(GeneratedReport.ser_no)
+        .order_by(func.max(GeneratedReport.created_at).desc())
+        .all()
+    )
+    return [
+        {
+            "ser_no":         r.ser_no,
+            "subscribed_at":  r.subscribed_at.isoformat() if r.subscribed_at else None,
+            "last_report_at": r.last_report_at.isoformat() if r.last_report_at else None,
+            "report_count":   r.report_count,
+        }
+        for r in rows
+    ]
+
+
+def get_device_reports(db: Session, ser_no: str, limit: int = 3) -> list[dict]:
+    """특정 ser_no의 최근 N주치 리포트 전체를 반환한다."""
+    reports = (
+        db.query(GeneratedReport)
+        .filter(GeneratedReport.ser_no == ser_no)
+        .order_by(GeneratedReport.week_start.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "report_id":  r.id,
+            "week_start": r.week_start.isoformat(),
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "report_json": r.report_json,
+        }
+        for r in reports
+    ]
 
 
 # ── Rolling 삭제 ─────────────────────────────────────────────────────────────

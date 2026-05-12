@@ -1,14 +1,14 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
-# config.py 기준 3단계 상위 = 프로젝트 루트
-_ROOT_ENV = Path(__file__).resolve().parents[3] / ".env"
+# config.py 기준 2단계 상위 = backend 디렉토리
+_ROOT_ENV = Path(__file__).resolve().parents[2] / ".env"
 
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "맘아이 리포트 서버"
     GEMINI_API_KEY: str = ""
-    DATABASE_URL: str = "sqlite:///./momi.db"
+    DATABASE_URL: str = ""
 
     # 맘아이 메인 서버가 발급한 JWT를 검증하는 공유 시크릿 (HS256)
     JWT_SECRET: str = ""
@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = str(_ROOT_ENV)
+        extra = "ignore"
 
 
 settings = Settings()

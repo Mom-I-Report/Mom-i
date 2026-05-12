@@ -25,7 +25,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],        # 운영 시 실제 앱 도메인으로 교체
-    allow_credentials=True,
+    allow_credentials=False,    # Bearer JWT 사용 — 쿠키 불필요. allow_origins=["*"]와 credentials=True 병용 불가
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -39,7 +39,7 @@ def on_startup():
 
 # ── 라우터 등록 ──
 app.include_router(report_api.router, prefix="/api/v1/reports", tags=["리포트"])
-app.include_router(admin_api.router,  prefix="/admin",          tags=["관리자"])
+app.include_router(admin_api.router,  prefix="/api/v1/admin",   tags=["관리자"])
 
 
 @app.get("/", tags=["시스템"])

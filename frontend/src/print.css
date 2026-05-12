@@ -1,0 +1,28 @@
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  body { background: #fff !important; margin: 0; padding: 0; }
+
+  /* 리포트 외 모든 UI 숨김 */
+  .no-print { display: none !important; }
+
+  /* 리포트 영역만 전체 폭으로 */
+  .print-area {
+    flex: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* 사이드 광고 숨김, 중앙 콘텐츠 단일 열로 */
+  .side-ad { display: none !important; }
+  .side-ad-container {
+    display: block !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+}

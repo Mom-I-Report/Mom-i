@@ -1,0 +1,140 @@
+
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* Premium High-end Palette (Oura / Apple Health vibe) */
+  --black: #0F0F0F;
+  --charcoal: #1C1C1E;
+  --gray-dark: #3A3A3C;
+  --gray-mut: #8E8E93;
+  --gray-lt: #E5E5EA;
+  --bg-color: #FFFFFF;
+  --surface: #F2F2F7;
+
+  --accent-1: #24614A; /* Deep Forest Green */
+  --accent-1-lt: #E5EFEB;
+  --accent-2: #A26038; /* Muted Bronze/Terracotta */
+  --accent-2-lt: #F6EFEA;
+}
+
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background: var(--gray-lt);
+  color: var(--black);
+  min-height: 100vh;
+}
+
+/* Base Utility Classes based on the old HTML styles */
+.btn-primary {
+  background: var(--black);
+  color: #fff;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn-primary:hover {
+  background: var(--charcoal);
+  transform: translateY(-1px);
+}
+.btn-primary:active {
+  transform: translateY(1px);
+}
+.btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.input-field {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--gray-lt);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--bg-color);
+  color: var(--black);
+  transition: border-color 0.2s;
+}
+.input-field:focus {
+  outline: none;
+  border-color: var(--black);
+}
+
+.card {
+  background: var(--bg-color);
+  border-radius: 12px;
+  border: 1px solid var(--gray-lt);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--black);
+  color: #fff;
+}
+
+/* Side Ad Layout */
+.side-ad-container {
+  display: grid;
+  /* 기본(모바일/태블릿): 중앙 리포트만 1열로 표시 */
+  grid-template-columns: minmax(0, 430px);
+  justify-content: center;
+  gap: 24px;
+  max-width: 1250px;
+  margin: 0 auto;
+  padding: 0 20px;
+  /* stretch: 양쪽 side-ad 열이 중앙 콘텐츠와 동일한 높이를 가져 시각적 균형 유지 */
+  align-items: stretch;
+}
+
+.side-ad {
+  display: none;
+  /* position sticky는 StickyWrapper(JS 스크롤 추적)가 대신 처리 */
+  height: 100%;
+  z-index: 10;
+}
+
+@media (min-width: 1250px) {
+  .side-ad-container {
+    /* PC: 좌측 광고 180px + 중앙 리포트 430px + 우측 광고 180px (3열 구조) */
+    grid-template-columns: 180px minmax(0, 430px) 180px;
+  }
+  .side-ad {
+    display: block;
+  }
+}
+
+@media print {
+  .side-ad {
+    display: none !important;
+  }
+  .side-ad-container {
+    padding: 0 !important;
+    display: block !important;
+  }
+}

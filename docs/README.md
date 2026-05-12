@@ -1,9 +1,8 @@
 # Mom-i 리포트 서버 — 문서 인덱스
 
-> 브랜치: `feat/noh` | 최종 갱신: 2026-04-19
+> 브랜치: `feat/noh` | 최종 갱신: 2026-04-27
 
 이 폴더는 맘아이 리포트 서버의 모든 설계·개발·운영 문서를 관리합니다.
-새로운 팀원이라면 **아래 순서대로** 읽으세요.
 
 ---
 
@@ -24,7 +23,6 @@
 | [plan.md](./plan.md) | 전체 개발 계획 (P0~P3 우선순위, 미완료 작업 목록) | 2026-04-19 |
 | [research.md](./research.md) | 리포트 생성 시스템 심층 분석 (전 레이어 코드 기준) | 2026-04-19 |
 | [dev-environment.md](./dev-environment.md) | 로컬 개발 환경 세팅, 패키지 목록, API 테스트 방법 | 2026-04-19 |
-| [meeting-report-decisions-2026-04-19.md](./meeting-report-decisions-2026-04-19.md) | 리포트 UI 구현을 위한 팀 결정 사항 회의 자료 | 2026-04-19 |
 
 ---
 
@@ -32,24 +30,32 @@
 
 | 폴더 | 설명 |
 |------|------|
-| [reference/](./reference/) | 외부 참고 자료 (EMTAKE 프로토콜, Claude Code 가이드 등) |
+| [noh/](./noh/) | 노호종 — AI 리포트 서버 작업 문서 (시스템 플로우, 협의 자료 등) |
+| [jang/](./jang/) | 장 담당 — 서비스 개요·아키텍처·프론트엔드 기획 문서 |
+| [reference/](./reference/) | 외부 참고 자료 (EMTAKE 프로토콜 등) |
 | [work-logs/](./work-logs/) | 작업자별 작업 일지 |
 | [archive/](./archive/) | 폐기된 구버전 문서 |
-| [image/](./image/) | UI 목업 스크린샷 (Notion 리포트 화면) |
+| [image/](./image/) | UI 목업 스크린샷 |
+| [ui-example/](./ui-example/) | 기존 Vite 프론트엔드 소스 보존본 |
 
 ---
 
 ## 시스템 개요
 
 ```
-맘아이 서버  →  POST /api/v1/reports/generate        →  리포트 JSON 반환
-앱 (사용자)  →  GET  /api/v1/reports                 →  목록 (최근 10건)
-앱 (사용자)  →  GET  /api/v1/reports/{report_id}     →  상세
+맘아이 서버  →  POST /api/v1/reports/generate       →  리포트 JSON 반환
+앱 (사용자)  →  GET  /api/v1/reports                →  목록 (최근 10건)
+앱 (사용자)  →  GET  /api/v1/reports/{report_id}    →  상세
+관리자       →  GET  /api/v1/admin/stats            →  서버 통계
+관리자       →  GET  /api/v1/admin/devices          →  기기 목록
+관리자       →  GET  /api/v1/admin/devices/{ser_no}/reports → 기기별 리포트
 ```
 
-- **스택:** FastAPI + SQLAlchemy + MariaDB 10.11 + Gemini 2.5 Flash
-- **DB:** Weekly_Data, Generated_Reports 2개 테이블
-- **AI:** Gemini 2.5 Flash — async, 재시도(최대 3회), 3필드 검증, JSON 출력 강제
+- **스택:** FastAPI + SQLAlchemy + MariaDB 10.11 + Gemini (google-genai)
+- **DB:** Weekly_Data (12주 보존), Generated_Reports (5주 보존)
+- **AI:** Gemini 3 Flash — async, 재시도(최대 3회), 3필드 검증, JSON 출력 강제
+
+> 전체 플로우 상세 → [noh/system-flow-2026-04-27.md](./noh/system-flow-2026-04-27.md)
 
 ---
 
@@ -57,19 +63,8 @@
 
 | 역할 | 담당 |
 |------|------|
-| AI 리포트 (비용 절감·신뢰성) | 노호종 |
-| 도메인 지식 (소아과 기준·점수 산식) | 담당자 |
-| 백엔드 공통 (인프라·배포) | 담당자 |
-
----
-
-## 현재 미결 사항 (팀 합의 필요)
-
-> 상세 내용 → [meeting-report-decisions-2026-04-19.md](./meeting-report-decisions-2026-04-19.md)
-
-1. **수면 점수 산식** — 히스토리·Best/Worst·일별 점수 전부의 선결 조건
-2. **취침/기상 시각** — EMTAKE에서 수신 가능한지 확인 필요
-3. **리포트 보존 기간** — 현재 3주, PDF 스펙은 4~8주 표시
+| AI 리포트 서버 (백엔드·관리자UI) | 노호종 |
+| 서비스 기획·프론트엔드 | 장 |
 
 ---
 
