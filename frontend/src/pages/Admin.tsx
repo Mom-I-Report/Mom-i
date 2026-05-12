@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import html2canvas from 'html2canvas';
 import ReportView from '../components/ReportView';
 
 const Admin: React.FC = () => {
@@ -10,6 +11,9 @@ const Admin: React.FC = () => {
   const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
   const [reports, setReports] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState(0);
+  const [viewMode, setViewMode] = useState<'mobile' | 'pc'>('mobile');
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const captureRef = useRef<HTMLDivElement>(null);
 
   const loadDevices = async () => {
     setLoading(true);
@@ -40,6 +44,25 @@ const Admin: React.FC = () => {
       setReports(await res.json());
     } catch (e: any) {
       console.error(e);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    const el = captureRef.current;
+    if (!el) return;
+    setPdfLoading(true);
+    try {
+      const canvas = await html2canvas(el, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' });
+      const { jsPDF } = await import('jspdf');
+      const pdfW = 210;
+      const pdfH = Math.round(pdfW * canvas.height / canvas.width);
+      const pdf = new jsPDF({ orientation: pdfH > pdfW ? 'portrait' : 'landscape', unit: 'mm', format: [pdfW, pdfH] });
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfW, pdfH);
+      const r = reports[activeTab];
+      const label = (r?.report_json?.week_label ?? r?.week_start ?? 'report').replace(/\s/g, '_');
+      pdf.save(`momi-${label}.pdf`);
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -118,32 +141,54 @@ const Admin: React.FC = () => {
             </div>
           ) : (
             <div>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
-                {reports.map((r: any, idx: number) => (
-                  <button
-                    key={r.report_id}
-                    onClick={() => setActiveTab(idx)}
-                    style={{
-                      padding: '10px 20px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      background: activeTab === idx ? 'var(--black)' : 'var(--bg-color)',
-                      color: activeTab === idx ? '#fff' : 'var(--charcoal)',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {formatDate(r.week_start)}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {reports.map((r: any, idx: number) => (
+                    <button
+                      key={r.report_id}
+                      onClick={() => setActiveTab(idx)}
+                      style={{
+                        padding: '10px 20px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: activeTab === idx ? 'var(--black)' : 'var(--bg-color)',
+                        color: activeTab === idx ? '#fff' : 'var(--charcoal)',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {formatDate(r.week_start)}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {(['mobile', 'pc'] as const).map(m => (
+                    <button key={m} onClick={() => setViewMode(m)} style={{ padding: '8px 14px', borderRadius: '8px', border: 'none', background: viewMode === m ? 'var(--black)' : 'var(--bg-color)', color: viewMode === m ? '#fff' : 'var(--charcoal)', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>
+                      {m === 'mobile' ? '모바일' : 'PC'}
+                    </button>
+                  ))}
+                  <button onClick={handleDownloadPdf} disabled={pdfLoading || !reports[activeTab]} style={{ padding: '8px 14px', borderRadius: '8px', border: 'none', background: 'var(--accent-1)', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '13px', opacity: !reports[activeTab] ? 0.4 : 1 }}>
+                    {pdfLoading ? '⏳ PDF...' : '⬇️ PDF'}
                   </button>
-                ))}
+                </div>
               </div>
               <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--gray-lt)' }}>
                 {reports[activeTab] && (
-                  <ReportView data={reports[activeTab].report_json} />
+                  <ReportView
+                    data={reports[activeTab].report_json}
+                    hideSideAds={true}
+                    mode={viewMode === 'pc' ? 'split' : 'default'}
+                  />
                 )}
               </div>
             </div>
           )}
+        </div>
+      </div>
+      {/* PDF 캡처용 숨김 영역 */}
+      <div style={{ position: 'fixed', left: '-9999px', top: 0, width: '1100px', background: '#fff', overflow: 'visible', pointerEvents: 'none' }}>
+        <div ref={captureRef}>
+          {reports[activeTab] && <ReportView data={reports[activeTab].report_json} mode="split" hideSideAds={true} />}
         </div>
       </div>
     </div>

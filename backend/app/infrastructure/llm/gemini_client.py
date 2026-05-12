@@ -200,10 +200,14 @@ def _build_prompt(ctx: dict) -> str:
     """
     tw = ctx["this_week"]
 
+    # ── 주령 계산 (원더윅스 판정 보조) ──────────────────────────────────────
+    age_months = ctx["baby_age_months"]
+    age_weeks  = round(age_months * 4.3)
+
     # ── 4_INPUT 템플릿 변수 치환 ─────────────────────────────────────────────
     prompt = (
         _INPUT_TEMPLATE
-        .replace("{{age_month}}",       f"{ctx['baby_age_months']}개월")
+        .replace("{{age_month}}",       f"{age_months}개월 (약 {age_weeks}주령)")
         .replace("{{avg_sleep}}",       f"{tw['avg_sleep_h']}시간")
         .replace("{{wake_count}}",      f"{tw['cry_count']}회")
         .replace("{{temperature}}",     f"평균 {tw['temp_avg']}°C")
@@ -222,20 +226,104 @@ def _build_prompt(ctx: dict) -> str:
         "발열 의심": " → 소아과 상담 권장",
     }.get(tw["body_temp_status"], "")
 
-    day_lines = "\n".join(
-        f"  {d['day']}: 수면 {d['sleep_h']}h / 뒤척임 {d['restless_min']}분"
-        for d in ctx.get("daily", [])
-    )
+    # 실내 온도 판정 (권장 18~22°C, 신생아 20~22°C)
+    temp_lo, temp_hi = (20.0, 22.0) if age_months <= 3 else (18.0, 22.0)
+    if tw["temp_max"] > temp_hi + 2:
+        indoor_temp_note = f" ⚠ 최고 {tw['temp_max']}°C — 권장({temp_lo}~{temp_hi}°C) 초과"
+    elif tw["temp_min"] < temp_lo - 3:
+        indoor_temp_note = f" ⚠ 최저 {tw['temp_min']}°C — 권장({temp_lo}~{temp_hi}°C) 미만"
+    else:
+        indoor_temp_note = f" ✅ 권장 범위 ({temp_lo}~{temp_hi}°C) 내"
+
+    # 취침 시간 판정 (knowledge 기준)
+    _BED_RANGE = {
+        4:  (18, 20), 8:  (18, 20),   # 4~8개월
+        23: (19, 20, 30),              # 9~23개월 → (19:00, 20:30)
+    }
+    def _bedtime_note(daily: list) -> str:
+        night_starts = [
+            d["night_sessions"][0]["start"]
+            for d in daily if d.get("night_sessions")
+        ]
+        if not night_starts:
+            return ""
+        def to_min(t: str) -> int:
+            h, m = map(int, t.split(":"))
+            return h * 60 + m
+        avg_start = round(sum(to_min(t) for t in night_starts) / len(night_starts))
+        h, m = divmod(avg_start, 60)
+        if age_months <= 8:
+            rec_lo, rec_hi = 18 * 60, 20 * 60
+        elif age_months <= 23:
+            rec_lo, rec_hi = 19 * 60, 20 * 60 + 30
+        else:
+            rec_lo, rec_hi = 19 * 60 + 30, 21 * 60
+        note = f" (평균 취침 {h:02d}:{m:02d}"
+        if avg_start > rec_hi:
+            over = avg_start - rec_hi
+            note += f" — 권장보다 {over//60}시간 {over%60}분 늦음 ⚠)"
+        elif avg_start < rec_lo:
+            note += " — 권장보다 이름 ✅)"
+        else:
+            note += " — 권장 시간대 ✅)"
+        return note
+    bedtime_note = _bedtime_note(ctx.get("daily", []))
+
+    # 일별 수면 라인 생성
+    day_lines_list = []
+    for d in ctx.get("daily", []):
+        line = f"  {d['day']}: 수면 {d['sleep_h']}h / 뒤척임 {d['restless_min']}분"
+        if d.get("wakeup_count") is not None:
+            line += f" / 총뒤척임 {d['wakeup_count']}회"
+        if d.get("nap_sessions", 0) > 0:
+            line += f" / 낮잠 {d['nap_sessions']}회"
+        if d.get("night_sessions"):
+            ns = d["night_sessions"]
+            if ns:
+                ns0 = ns[0]
+                line += f" / 밤잠 {ns0['start']}~{ns0['end']}({ns0['duration_min']}분)"
+        if d.get("device_status") and d["device_status"] != "NORMAL":
+            line += f" [{d['device_status']}]"
+        day_lines_list.append(line)
+    day_lines = "\n".join(day_lines_list)
+
+    # 환경 부가 정보 (습도, 조도)
+    env_extra = ""
+    if tw.get("humidity_avg") is not None:
+        hum_note = ""
+        hum_avg = tw["humidity_avg"]
+        if hum_avg < 40:
+            hum_note = " ⚠ 건조"
+        elif hum_avg > 60:
+            hum_note = " ⚠ 과습"
+        env_extra += f" / 습도 평균 {hum_avg}% (최소 {tw.get('humidity_min')} / 최대 {tw.get('humidity_max')}){hum_note}"
+    if tw.get("bright_avg") is not None:
+        bright_avg = tw["bright_avg"]
+        bright_note = ""
+        if bright_avg > 20:
+            bright_note = " ⚠ 수면 중 밝음 (5lux 이하 권장)"
+        elif bright_avg > 5:
+            bright_note = " △ 약간 밝음"
+        env_extra += f" / 조도 평균 {bright_avg}lux (최소 {tw.get('bright_min')} / 최대 {tw.get('bright_max')}){bright_note}"
+
+    # 주간/낮잠 요약
+    weekly_extra = ""
+    if tw.get("week_sleep_h") is not None:
+        weekly_extra += f" / 주간 평균 수면 {tw['week_sleep_h']}h"
+    if tw.get("week_restless_h") is not None:
+        weekly_extra += f" / 주간 평균 뒤척임 {tw['week_restless_h']}h"
+    if tw.get("nap_count") is not None:
+        weekly_extra += f" / 주간 낮잠 {tw['nap_count']}회"
 
     prompt += f"""
 
 [상세 데이터]
-주간: 뒤척임 {tw['avg_restless_min']}분 / 월간 평균 수면 {tw['month_sleep_h']}h
-환경: 온도 {tw['temp_avg']}°C (최고 {tw['temp_max']} / 최저 {tw['temp_min']}) / 소음 평균 {tw['db_avg']}dB 최대 {tw['db_max']}dB
+주간: 뒤척임 {tw['avg_restless_min']}분 / 월간 평균 수면 {tw['month_sleep_h']}h{weekly_extra}
+환경: 온도 {tw['temp_avg']}°C (최고 {tw['temp_max']} / 최저 {tw['temp_min']}){indoor_temp_note} / 소음 최고 {tw['db_max']}dB (릴레이 Max값만 제공){env_extra}
 호흡: 평균 {tw['breath_avg']}회/분 (최소 {tw['breath_min']} / 최대 {tw['breath_max']}) — {breath_status}
 체온: 평균 {tw['body_temp_avg']}°C / 최고 {tw['body_temp_max']}°C — {tw['body_temp_status']}{temp_extra}
 
-[일별 수면]
+[일별 수면]{bedtime_note}
 {day_lines}
 """
 

@@ -9,7 +9,7 @@ entity.py — SQLAlchemy ORM 모델 정의
   - 개인정보(이름·생년월일·이메일) 일절 저장하지 않음
   - ser_no(카메라 시리얼 번호) 만 사용자 식별자로 사용
   - UNIQUE KEY (ser_no, week_start) → 동일 주차 재전송 시 upsert
-  - rolling 삭제: 3주치 초과 데이터는 매주 물리 삭제 (소프트 삭제 없음)
+  - rolling 삭제: WeeklyData 12주·GeneratedReport 5주 초과 시 매주 물리 삭제 (소프트 삭제 없음)
 
 주의:
   SQLAlchemy create_all()은 테이블을 새로 만들 뿐 ALTER TABLE은 수행하지 않음.
@@ -30,12 +30,12 @@ class WeeklyData(Base):
       리포트 생성 후에도 원본은 보존해 다음 주 AI 컨텍스트에서 재사용됨.
 
     JSON 컬럼 구조:
-      sleep_json     : [{date, sleep_min, restless_min}, ...] — 7일치
-      env_json       : {temp_avg, temp_max, temp_min, db_max, db_avg}
+      sleep_json     : [{date, sleep_min, restless_min, wakeup_count?, device_status?, sessions?}, ...] — 7일치
+      env_json       : {temp_avg, temp_max, temp_min, db_max, db_avg, humidity_min?, humidity_max?, humidity_avg?, bright_min?, bright_max?, bright_avg?}
       event_json     : {cry_count, leave_count}
       breath_json    : {breath_min, breath_max, breath_avg}
-      body_temp_json : {body_temp_min, body_temp_max, body_temp_avg}
-      monthly_json   : {month_sleep_h, month_restless_h}
+      body_temp_json : {body_temp_min, body_temp_max, body_temp_avg} — 절대 체온 아닌 델타값(°C)
+      monthly_json   : {month_sleep_h, month_restless_h, week_sleep_h?, week_restless_h?}
 
     보존 기간:
       12주 초과 시 매주 월요일 10:00 KST 스케줄러가 물리 삭제. (AI 고도화 컨텍스트용)

@@ -10,6 +10,7 @@ interface ReportViewProps {
   hideSideAds?: boolean;
   contentMaxWidth?: number;
   meta?: {
+    name?: string;
     ageMonths?: number;
     weekNum?: number;
     weekStart?: string;
@@ -84,6 +85,20 @@ const StickyWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 };
 
 const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', hideSideAds = false, contentMaxWidth = 430 }) => {
+  const splitRef = React.useRef<HTMLDivElement>(null);
+  const [splitCols, setSplitCols] = React.useState(2);
+
+  React.useEffect(() => {
+    if (mode !== 'split') return;
+    const el = splitRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(entries => {
+      setSplitCols(entries[0].contentRect.width >= 720 ? 2 : 1);
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [mode]);
+
   if (!data) return null;
 
   const { summary, breath, body_temp, daily, daily_stats, ai_comment, sleep_guide, age_kick, parent_message } = data;
@@ -120,7 +135,7 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
   // 레이더 차트 점수 계산
   const radarScores = () => {
     const sleep = summary?.avg_sleep_h != null ? Math.min(100, Math.round(summary.avg_sleep_h / 14 * 100)) : 50;
-    const stable = summary?.avg_restless_min != null ? Math.max(0, Math.round(100 - summary.avg_restless_min / 60 * 100)) : 50;
+    const stable = summary?.avg_restless_min != null ? Math.max(0, Math.round(100 - summary.avg_restless_min / 120 * 100)) : 50;
     const bScore = breath?.is_normal != null ? (breath.is_normal ? 100 : 45) : (breath?.breath_avg ? (breath.breath_avg >= 20 && breath.breath_avg <= 40 ? 100 : 50) : 50);
     const tScore = body_temp?.status === '정상' ? 100 : body_temp?.status?.includes('주의') ? 60 : 30;
     return [sleep, stable, bScore, tScore];
@@ -265,7 +280,7 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
             <div style={S.brandSub}>Premium Sleep Diagnostics</div>
           </div>
           <div style={S.headerInfo}>
-            {meta && <div style={S.headerMain}>{meta.ageMonths ? `아기 (${meta.ageMonths}M)` : ''}</div>}
+            {meta && <div style={S.headerMain}>{meta.name ? `${meta.name} (${meta.ageMonths}M)` : meta.ageMonths ? `아기 (${meta.ageMonths}M)` : ''}</div>}
             {meta?.weekNum && <div style={S.headerSub}>Week {meta.weekNum} ({meta.weekStart})</div>}
           </div>
         </div>
@@ -429,8 +444,8 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
 
   if (mode === 'split') {
     return (
-      <div style={{ maxWidth: 1120, margin: '0 auto', padding: '20px 16px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 20, alignItems: 'start' }}>
+      <div ref={splitRef} style={{ maxWidth: 1120, margin: '0 auto', padding: '20px 16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${splitCols}, minmax(0, 1fr))`, gap: 20, alignItems: 'start' }}>
           <div style={{ ...S.container, maxWidth: 'none', border: '1px solid var(--gray-lt)', borderRadius: 12, overflow: 'hidden' }}>
             {pageOne}
             <div style={{ padding: '0 24px 24px' }}>
@@ -449,7 +464,8 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
   }
 
   return (
-    <div className="side-ad-container">
+    <div className={hideSideAds ? undefined : "side-ad-container"}
+         style={hideSideAds ? { maxWidth: contentMaxWidth, width: '100%', margin: '0 auto' } : undefined}>
       {!hideSideAds && (
         <div className="side-ad" style={{ zIndex: 10 }}>
           <StickyWrapper>

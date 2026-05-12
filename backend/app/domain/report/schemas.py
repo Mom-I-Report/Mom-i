@@ -21,6 +21,21 @@ from datetime import date, datetime
 
 # ── 요청: 맘아이 서버 → 리포트 서버 ─────────────────────────────────────────
 
+class SleepSession(BaseModel):
+    """
+    하나의 수면 구간 (밤잠 or 낮잠).
+    EMTAKE SleepData.sessions[] 단건에 대응.
+    is_nap: start 시각이 21:00 이전이면 낮잠으로 분류.
+    """
+    model_config = ConfigDict(extra='ignore')
+
+    start: str          # "23:45"
+    end: str            # "06:23"
+    duration_min: int   # 398
+    wake_up: int        # 해당 구간 뒤척임 횟수
+    is_nap: bool = False
+
+
 class SleepDay(BaseModel):
     """
     하루치 수면 데이터.
@@ -37,10 +52,13 @@ class SleepDay(BaseModel):
     rem_sleep_min: Optional[int] = None     # 렘수면
     light_sleep_min: Optional[int] = None   # 얕은 수면
     wake_time_min: Optional[int] = None     # 깬 시간
+    wakeup_count: Optional[int] = None      # 총 뒤척임 횟수 (day_wakeup)
+    device_status: Optional[str] = None     # 기기 판단 상태 (NORMAL / CAUTION 등)
+    sessions: Optional[List[SleepSession]] = None  # 수면 세션 상세
 
 
 class EnvironmentData(BaseModel):
-    """실내 환경 집계 데이터. EMTAKE CMD: IndoorTemp + CMD: dB."""
+    """실내 환경 집계 데이터. EMTAKE CMD: IndoorTemp + dB + Humidity + Bright."""
     model_config = ConfigDict(extra='ignore')
 
     temp_avg: float
@@ -48,6 +66,12 @@ class EnvironmentData(BaseModel):
     temp_min: float
     db_max: int
     db_avg: int
+    humidity_min: Optional[float] = None
+    humidity_max: Optional[float] = None
+    humidity_avg: Optional[float] = None
+    bright_min: Optional[float] = None
+    bright_max: Optional[float] = None
+    bright_avg: Optional[float] = None
 
 
 class BreathData(BaseModel):
@@ -69,11 +93,13 @@ class BodyTempData(BaseModel):
 
 
 class MonthlySummary(BaseModel):
-    """월간 수면 집계 데이터. EMTAKE CMD: SleepData month_gs / month_pr."""
+    """월간/주간 수면 집계 데이터. EMTAKE CMD: SleepData month_gs/pr + week_gs/pr."""
     model_config = ConfigDict(extra='ignore')
 
     month_sleep_h: float
     month_restless_h: float
+    week_sleep_h: Optional[float] = None
+    week_restless_h: Optional[float] = None
 
 
 class EventData(BaseModel):
@@ -174,6 +200,11 @@ class ReportSummary(BaseModel):
     db_max: int
     month_sleep_h: float
     month_restless_h: float
+    week_sleep_h: Optional[float] = None
+    week_restless_h: Optional[float] = None
+    humidity_avg: Optional[float] = None
+    bright_avg: Optional[float] = None
+    nap_count: Optional[int] = None     # 주간 낮잠 세션 수 합계
 
 
 class AiCommentItem(BaseModel):

@@ -28,7 +28,7 @@ EMTAKE 카메라 → 맘아이 서버 ──POST /api/v1/reports/generate──�
 |------|------|
 | 프레임워크 | FastAPI + Uvicorn |
 | ORM / DB | SQLAlchemy 2.0 + MariaDB 10.11 |
-| AI | Google Gemini 3 Flash Preview (`gemini-3-flash-preview`) |
+| AI | Google Gemini 2.5 Flash (`gemini-2.5-flash`) |
 | 인증 | python-jose (JWT HS256 검증) |
 | 스케줄러 | APScheduler (매주 월요일 10:00 KST rolling 삭제) |
 | 컨테이너 | Docker + docker-compose |
@@ -82,29 +82,16 @@ mom-i/
 │   ├── public/
 │   │   └── favicon.svg
 │   └── src/
-│       ├── types/report.ts         ← 공유 TypeScript 타입
-│       ├── lib/
-│       │   ├── api.ts              ← fetch 함수 (generate, devices, reports)
-│       │   ├── utils.ts            ← fmtH, md2html, stripLeadingEmoji
-│       │   ├── chartSetup.ts       ← Chart.js 컴포넌트 등록
-│       │   └── pdf.ts              ← PDF 내보내기 (html2canvas + jsPDF)
-│       ├── styles/
-│       │   ├── variables.css       ← CSS 커스텀 프로퍼티 (:root)
-│       │   ├── global.css          ← 페이지 공통 스타일
-│       │   └── report.css          ← 리포트 컴포넌트 스타일
-│       ├── components/report/
-│       │   ├── RadarChart.tsx
-│       │   ├── BarChart.tsx
-│       │   ├── DataSummary.tsx     ← 레이더 + 통계 요약
-│       │   ├── DailySection.tsx    ← 일별 테이블 + 막대 차트
-│       │   ├── ActionPlan.tsx      ← 핵심 솔루션
-│       │   ├── InsightCards.tsx    ← ALERT/EXCELLENT 카드
-│       │   ├── DevCare.tsx         ← 발달 케어
-│       │   ├── ReportBody.tsx      ← 일반 리포트 (모바일 스크롤)
-│       │   └── ReportBodyPdf.tsx   ← PDF 전용 2컬럼 레이아웃
+│       ├── index.css               ← 전역 스타일 (CSS 커스텀 프로퍼티 포함)
+│       ├── print.css               ← 프린트/PDF 전용 스타일
+│       ├── components/
+│       │   ├── ReportView.tsx      ← 공유 리포트 렌더링 컴포넌트 (Demo/Admin 공용)
+│       │   ├── AdBanner.tsx        ← 광고 배너 컴포넌트
+│       │   └── charts/
+│       │       └── ChartSetup.ts   ← Chart.js 컴포넌트 등록
 │       ├── pages/
-│       │   ├── Demo.tsx            ← AI 테스트 페이지
-│       │   └── Admin.tsx           ← 관리자 대시보드
+│       │   ├── Demo.tsx            ← AI 테스트 페이지 (JSON 업로드, PDF 저장, 보기 모드)
+│       │   └── Admin.tsx           ← 관리자 대시보드 (기기 목록, 탭, PDF 저장, 보기 모드)
 │       ├── main-demo.tsx           ← demo.html 진입점
 │       └── main-admin.tsx          ← admin.html 진입점
 └── docs/
@@ -228,7 +215,7 @@ X-API-Key: <ADMIN_API_KEY 값>
 1. Weekly_Data upsert          — 원본 데이터 항상 저장 (캐시 히트여도)
 2. 캐시 확인                   — 동일 주차 리포트 있으면 Gemini 재호출 없이 즉시 반환
 3. 이전 2주치 조회 (1회)       — 트렌드 계산 + AI 컨텍스트 공용
-4. 집계                        — 주간 요약 / 일별 / 호흡 / 체온 / 트렌드
+4. 집계                        — 주간 요약(nap_count·humidity·brightness 포함) / 일별 / 호흡 / 체온 / 트렌드
 5. Gemini 비동기 호출          — 최대 3회 재시도, 3필드 검증, JSON 보정 재호출
 6. Generated_Reports upsert    — 리포트 저장 후 응답 반환
 ```
@@ -260,12 +247,14 @@ Gemini가 반환하는 JSON 구조 (`GenerateReportResponse`의 AI 생성 필드
     "title": "8개월 분리불안",
     "text": "이 시기 아기는...",
     "is_wonder_weeks": true
-  }
+  },
+  "parent_message": "이번 주도 아기 곁에서 함께해주셔서 감사해요..."
 }
 ```
 
 - `sleep_guide`: 0~2개월 아기는 `null` (수면 교육 전체 금지)
 - `is_wonder_weeks`: `baby_age_months × 4.3 ≈ 주령` 기준, ±1주 이내면 `true`
+- `parent_message`: 부모 응원 메시지 (리포트 하단 표시용)
 
 ---
 

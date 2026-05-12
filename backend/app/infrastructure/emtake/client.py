@@ -285,15 +285,13 @@ async def fetch_environment(account: str, uid: str, user_type: str = "LLMREPORT"
     )
     t_min = float(temp_raw.get("Min", 0.0))
     t_max = float(temp_raw.get("Max", 0.0))
-    d_min = int(db_raw.get("Min", 0))
-    d_max = int(db_raw.get("Max", 0))
+    d_max = int(db_raw.get("Max", 0))   # dB는 Max만 제공됨 (Min 없음)
     return {
         "temp_min": t_min,
         "temp_max": t_max,
         "temp_avg": _calc_avg_float(t_min, t_max, ndigits=1),
-        "db_min":   d_min,
         "db_max":   d_max,
-        "db_avg":   _calc_avg_int(d_min, d_max),
+        "db_avg":   d_max,
     }
 
 
@@ -308,4 +306,217 @@ async def fetch_events(account: str, uid: str, user_type: str = "LLMREPORT") -> 
     return {
         "cry_count":   int(raw.get("cry_count") or raw.get("CryCount") or 0),
         "leave_count": int(raw.get("leave_count") or raw.get("LeaveCount") or 0),
+    }
+
+
+def _parse_wakeup_count(day_wakeup: str) -> Optional[int]:
+    """'5 times' 형태 문자열에서 정수를 추출한다. 파싱 불가 시 None 반환."""
+    m = re.search(r"\d+", day_wakeup or "")
+    return int(m.group()) if m else None
+
+
+def _classify_sessions(sessions: list) -> list:
+    """
+    수면 세션 목록에 낮잠 여부(is_nap)를 추가한다.
+    start 시각이 21:00 이전이면 낮잠, 이후면 밤잠으로 분류.
+    """
+    result = []
+    for s in sessions:
+        start_h = int(s.get("start", "0:0").split(":")[0])
+        result.append({
+            "start":        s.get("start", ""),
+            "end":          s.get("end", ""),
+            "duration_min": int(s.get("duration_min", 0)),
+            "wake_up":      int(s.get("wake_up", 0)),
+            "is_nap":       start_h < 21,
+        })
+    return result
+
+
+def parse_sensor_data_day(raw: dict, target_date: date_cls) -> dict:
+    """
+    CMD=SensorData (ALL) 응답 하루치를 필드별로 파싱한다.
+
+    SensorData 응답 구조:
+      raw["SleepData"]  = {"day_gs": "7h19m", "day_pr": "0h59m",
+                           "week_gs": "10h48m", "week_pr": "1h53m",
+                           "month_gs": "10h11m", "month_pr": "1h47m",
+                           "day_wakeup": "5 times", "status": "NORMAL",
+                           "sessions": [...]}
+      raw["Breath"]     = {"Min": 9, "Max": 16}
+      raw["Temp"]       = {"Min": -2.2, "Max": 0.4}   ← 델타값
+      raw["IndoorTemp"] = {"Min": 18.1, "Max": 22.5}
+      raw["dB"]         = {"Max": 51}                  ← Min 없음
+      raw["Humidity"]   = {"Min": 38, "Max": 47}
+      raw["Bright"]     = {"Min": 24, "Max": 108}
+      raw["birth_date"] = "2026-05-08"
+    """
+    sd   = raw.get("SleepData", {})
+    b    = raw.get("Breath", {})
+    t    = raw.get("Temp", {})
+    it   = raw.get("IndoorTemp", {})
+    db   = raw.get("dB", {})
+    hum  = raw.get("Humidity", {})
+    brt  = raw.get("Bright", {})
+
+    b_min   = int(b.get("Min", 0))
+    b_max   = int(b.get("Max", 0))
+    t_min   = float(t.get("Min", 0.0))
+    t_max   = float(t.get("Max", 0.0))
+    it_min  = float(it.get("Min", 0.0))
+    it_max  = float(it.get("Max", 0.0))
+
+    result = {
+        "date":             str(target_date),
+        "sleep_min":        parse_duration_str(sd.get("day_gs", "")),
+        "restless_min":     parse_duration_str(sd.get("day_pr", "")),
+        "baby_age_months":  _calc_age_months(raw.get("birth_date", "")),
+        "breath_min":       b_min,
+        "breath_max":       b_max,
+        "breath_avg":       _calc_avg_int(b_min, b_max),
+        "body_temp_min":    t_min,
+        "body_temp_max":    t_max,
+        "body_temp_avg":    _calc_avg_float(t_min, t_max),
+        "temp_min":         it_min,
+        "temp_max":         it_max,
+        "db_max":           int(db.get("Max", 0)),
+        "month_sleep_h":    round(parse_duration_str(sd.get("month_gs", "")) / 60, 2),
+        "month_restless_h": round(parse_duration_str(sd.get("month_pr", "")) / 60, 2),
+        "week_sleep_h":     round(parse_duration_str(sd.get("week_gs", "")) / 60, 2) if sd.get("week_gs") else None,
+        "week_restless_h":  round(parse_duration_str(sd.get("week_pr", "")) / 60, 2) if sd.get("week_pr") else None,
+        "device_status":    sd.get("status"),
+        "wakeup_count":     _parse_wakeup_count(sd.get("day_wakeup", "")),
+        "sessions":         _classify_sessions(sd.get("sessions", [])) or None,
+    }
+
+    # 습도 (있을 때만)
+    if hum:
+        h_min = float(hum.get("Min", 0.0))
+        h_max = float(hum.get("Max", 0.0))
+        result["humidity_min"] = h_min
+        result["humidity_max"] = h_max
+        result["humidity_avg"] = _calc_avg_float(h_min, h_max, 1)
+
+    # 조도 (있을 때만)
+    if brt:
+        br_min = float(brt.get("Min", 0.0))
+        br_max = float(brt.get("Max", 0.0))
+        result["bright_min"] = br_min
+        result["bright_max"] = br_max
+        result["bright_avg"] = _calc_avg_float(br_min, br_max, 1)
+
+    return result
+
+
+async def build_generate_request_from_sensor(
+    account: str,
+    uid: str,
+    ref_date: date_cls,
+    ser_no: str,
+    user_type: str = "LLMREPORT",
+) -> dict:
+    """
+    CMD=SensorData로 7일치를 날짜별 병렬 호출해
+    GenerateReportRequest(**result)로 바로 사용 가능한 dict를 반환한다.
+
+    ref_date: 마지막 날(포함). 7일치를 ref_date-6 ~ ref_date 순으로 수집.
+    Breath/Temp/IndoorTemp/dB는 7일 평균으로 집계.
+    월간 데이터는 마지막 날 응답에서 추출.
+    Events는 미지원이므로 0 처리.
+    """
+    import asyncio
+    from datetime import timedelta
+
+    dates = [ref_date - timedelta(days=i) for i in range(6, -1, -1)]
+
+    raws = await asyncio.gather(*[
+        _fetch_raw(account, uid, "SensorData", date_str=str(d), user_type=user_type)
+        for d in dates
+    ])
+
+    days = [parse_sensor_data_day(raw, d) for raw, d in zip(raws, dates)]
+
+    # 7일치 수치 집계
+    def _avg_int(key: str) -> int:
+        return round(sum(d[key] for d in days) / 7)
+
+    def _avg_float(key: str, ndigits: int = 2) -> float:
+        return round(sum(d[key] for d in days) / 7, ndigits)
+
+    b_min  = _avg_int("breath_min")
+    b_max  = _avg_int("breath_max")
+    t_min  = _avg_float("body_temp_min")
+    t_max  = _avg_float("body_temp_max")
+    it_min = _avg_float("temp_min", 1)
+    it_max = _avg_float("temp_max", 1)
+    db_max = max(d["db_max"] for d in days)
+
+    last = days[-1]
+
+    # 습도·조도: 제공된 날짜만 평균 (센서 없는 기기 대응)
+    hum_days  = [d for d in days if d.get("humidity_avg") is not None]
+    brt_days  = [d for d in days if d.get("bright_avg") is not None]
+
+    env: dict = {
+        "temp_min": it_min,
+        "temp_max": it_max,
+        "temp_avg": _calc_avg_float(it_min, it_max, 1),
+        "db_max":   db_max,
+        "db_avg":   db_max,
+    }
+    if hum_days:
+        h_min_avg = round(sum(d["humidity_min"] for d in hum_days) / len(hum_days), 1)
+        h_max_avg = round(sum(d["humidity_max"] for d in hum_days) / len(hum_days), 1)
+        env["humidity_min"] = h_min_avg
+        env["humidity_max"] = h_max_avg
+        env["humidity_avg"] = round((h_min_avg + h_max_avg) / 2, 1)
+    if brt_days:
+        br_min_avg = round(sum(d["bright_min"] for d in brt_days) / len(brt_days), 1)
+        br_max_avg = round(sum(d["bright_max"] for d in brt_days) / len(brt_days), 1)
+        env["bright_min"] = br_min_avg
+        env["bright_max"] = br_max_avg
+        env["bright_avg"] = round((br_min_avg + br_max_avg) / 2, 1)
+
+    sleep_list = []
+    for d in days:
+        entry: dict = {
+            "date":         d["date"],
+            "sleep_min":    d["sleep_min"],
+            "restless_min": d["restless_min"],
+        }
+        if d.get("wakeup_count") is not None:
+            entry["wakeup_count"] = d["wakeup_count"]
+        if d.get("device_status"):
+            entry["device_status"] = d["device_status"]
+        if d.get("sessions"):
+            entry["sessions"] = d["sessions"]
+        sleep_list.append(entry)
+
+    monthly: dict = {
+        "month_sleep_h":    last["month_sleep_h"],
+        "month_restless_h": last["month_restless_h"],
+    }
+    if last.get("week_sleep_h") is not None:
+        monthly["week_sleep_h"]    = last["week_sleep_h"]
+        monthly["week_restless_h"] = last.get("week_restless_h")
+
+    return {
+        "ser_no":          ser_no,
+        "baby_age_months": last["baby_age_months"],
+        "week_start":      str(dates[0]),
+        "user_type":       "baby" if user_type == "LLMREPORT" else "senior",
+        "sleep":           sleep_list,
+        "breath": {
+            "breath_min": b_min,
+            "breath_max": b_max,
+            "breath_avg": _calc_avg_int(b_min, b_max),
+        },
+        "body_temp": {
+            "body_temp_min": t_min,
+            "body_temp_max": t_max,
+            "body_temp_avg": _calc_avg_float(t_min, t_max),
+        },
+        "environment": env,
+        "monthly":     monthly,
+        "events":      {"cry_count": 0, "leave_count": 0},
     }

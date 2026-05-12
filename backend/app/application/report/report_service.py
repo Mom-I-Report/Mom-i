@@ -66,6 +66,23 @@ _BODY_TEMP_CAUTION_MAX = 1.4   # 이하: 미열 주의 (1~1.5°C 상승)
 
 # ── 내부 헬퍼 함수 ──────────────────────────────────────────────────────────
 
+def _get_body_temp_status(body_temp_max: float) -> str:
+    """
+    수면 중 최고 체온을 기준으로 상태를 판정한다.
+
+    기준 (최고 체온 기준으로 판정):
+      0.9°C 미만 상승  → 정상
+      0.9~1.4°C 상승   → 미열 주의
+      1.4°C 초과 상승  → 발열 의심 (소아과 상담 권장)
+    """
+    if body_temp_max <= _BODY_TEMP_NORMAL_MAX:
+        return "정상"
+    elif body_temp_max <= _BODY_TEMP_CAUTION_MAX:
+        return "미열 주의"
+    else:
+        return "발열 의심"
+
+
 def _week_label(week_start: date) -> str:
     """
     week_start 날짜를 '2026년 4월 2주차' 형식 문자열로 변환.
@@ -91,23 +108,6 @@ def _get_breath_range(baby_age_months: int) -> tuple[int, int, str]:
     return b_min, b_max, f"{b_min}~{b_max}회/분"
 
 
-def _get_body_temp_status(body_temp_max: float) -> str:
-    """
-    수면 중 최고 체온을 기준으로 상태를 판정한다.
-
-    기준 (최고 체온 기준으로 판정):
-      37.4°C 이하  → 정상
-      37.5~37.9°C  → 미열 주의
-      38.0°C 이상  → 발열 의심 (소아과 상담 권장)
-    """
-    if body_temp_max <= _BODY_TEMP_NORMAL_MAX:
-        return "정상"
-    elif body_temp_max <= _BODY_TEMP_CAUTION_MAX:
-        return "미열 주의"
-    else:
-        return "발열 의심"
-
-
 def _build_summary(req: GenerateReportRequest) -> ReportSummary:
     """
     7일치 수면 데이터를 집계해 주간 요약(ReportSummary)을 생성한다.
@@ -115,10 +115,18 @@ def _build_summary(req: GenerateReportRequest) -> ReportSummary:
     계산:
       avg_sleep_h      = sum(sleep_min) / 7 / 60   (시간, 소수점 1자리)
       avg_restless_min = sum(restless_min) / 7      (분, 정수)
+      nap_count        = sessions 중 is_nap=True 개수 합산
       month_sleep_h    = monthly.month_sleep_h      (맘아이 서버 집계값 그대로)
     """
     sleep_mins    = [s.sleep_min for s in req.sleep]
     restless_mins = [s.restless_min for s in req.sleep]
+
+    # 낮잠 세션 합산 (sessions 있는 날만)
+    nap_count = sum(
+        sum(1 for sess in (day.sessions or []) if sess.is_nap)
+        for day in req.sleep
+    )
+
     return ReportSummary(
         avg_sleep_h=round(sum(sleep_mins) / len(sleep_mins) / 60, 1),
         avg_restless_min=round(sum(restless_mins) / len(restless_mins)),
@@ -128,6 +136,11 @@ def _build_summary(req: GenerateReportRequest) -> ReportSummary:
         db_max=req.environment.db_max,
         month_sleep_h=req.monthly.month_sleep_h,
         month_restless_h=req.monthly.month_restless_h,
+        week_sleep_h=req.monthly.week_sleep_h,
+        week_restless_h=req.monthly.week_restless_h,
+        humidity_avg=req.environment.humidity_avg,
+        bright_avg=req.environment.bright_avg,
+        nap_count=nap_count if nap_count > 0 else None,
     )
 
 
@@ -180,9 +193,9 @@ def _build_body_temp_summary(req: GenerateReportRequest) -> BodyTempSummary:
       최고 체온이 가장 임상적 위험 신호에 가깝기 때문.
 
     status 값 (델타 기준):
-      "정상"       : 상승 0.9°C 이하
-      "미열 주의"  : 상승 1.0~1.4°C
-      "발열 의심"  : 상승 1.5°C 이상 → AI가 소아과 상담 권장 문구 출력
+      "정상"       : 0.9°C 미만 상승
+      "미열 주의"  : 0.9~1.4°C 상승
+      "발열 의심"  : 1.4°C 초과 상승 → AI가 소아과 상담 권장 문구 출력
     """
     bt = req.body_temp
     return BodyTempSummary(
@@ -283,6 +296,17 @@ def _build_pattern_summary(
     if body_temp_summary.status != "정상":
         parts.append(body_temp_summary.status)
 
+    # 습도
+    if summary.humidity_avg is not None:
+        if summary.humidity_avg < 40:
+            parts.append("습도 낮음")
+        elif summary.humidity_avg > 60:
+            parts.append("습도 높음")
+
+    # 낮잠
+    if summary.nap_count is not None and summary.nap_count > 0:
+        parts.append(f"낮잠 {summary.nap_count}회")
+
     return " / ".join(parts)
 
 
@@ -329,6 +353,12 @@ def _build_ai_context(
             "temp_min":         req.environment.temp_min,
             "db_avg":           req.environment.db_avg,
             "db_max":           req.environment.db_max,
+            "humidity_avg":     req.environment.humidity_avg,
+            "humidity_min":     req.environment.humidity_min,
+            "humidity_max":     req.environment.humidity_max,
+            "bright_avg":       req.environment.bright_avg,
+            "bright_min":       req.environment.bright_min,
+            "bright_max":       req.environment.bright_max,
             # 호흡수
             "breath_avg":       breath_summary.breath_avg,
             "breath_min":       breath_summary.breath_min,
@@ -339,13 +369,25 @@ def _build_ai_context(
             "body_temp_avg":    body_temp_summary.body_temp_avg,
             "body_temp_max":    body_temp_summary.body_temp_max,
             "body_temp_status": body_temp_summary.status,
+            # 주간/월간
+            "week_sleep_h":     summary.week_sleep_h,
+            "week_restless_h":  summary.week_restless_h,
+            "nap_count":        summary.nap_count,
         },
         # 일별 수면: AI가 요일별 패턴 파악에 사용
         "daily": [
             {
-                "day":          _DAY_KO[s.date.weekday()],
-                "sleep_h":      round(s.sleep_min / 60, 1),
-                "restless_min": s.restless_min,
+                "day":           _DAY_KO[s.date.weekday()],
+                "sleep_h":       round(s.sleep_min / 60, 1),
+                "restless_min":  s.restless_min,
+                "wakeup_count":  s.wakeup_count,
+                "device_status": s.device_status,
+                "nap_sessions":  sum(1 for sess in (s.sessions or []) if sess.is_nap),
+                "night_sessions": [
+                    {"start": sess.start, "end": sess.end,
+                     "duration_min": sess.duration_min, "wake_up": sess.wake_up}
+                    for sess in (s.sessions or []) if not sess.is_nap
+                ],
             }
             for s in req.sleep
         ],

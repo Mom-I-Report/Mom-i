@@ -25,7 +25,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],        # 운영 시 실제 앱 도메인으로 교체
-    allow_credentials=True,
+    allow_credentials=False,    # Bearer JWT 사용 — 쿠키 불필요. allow_origins=["*"]와 credentials=True 병용 불가
     allow_methods=["*"],
     allow_headers=["*"],
 )
