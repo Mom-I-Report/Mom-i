@@ -3,7 +3,7 @@ gemini_client.py — Gemini 3 Flash 비동기 클라이언트
 
 구현된 기능:
   1. async  — generate_content_async() 로 비동기 호출 (Gemini 대기 3~8초 non-blocking)
-  2. 재시도  — 최대 3회, 지수 백오프 (1s → 2s → 4s)
+  2. 재시도  — 최대 5회, 지수 백오프 (5s → 10s → 20s → 40s → 80s)
              429(Rate limit) / 503(Service Unavailable) 모두 재시도 대상
   3. JSON 출력 — response_mime_type: "application/json" + 프롬프트 강제
   4. JSON 검증 — ai_comment / sleep_guide / age_kick 필드 존재 여부 확인
@@ -42,7 +42,7 @@ _SYSTEM_PROMPT = (
 )
 _INPUT_TEMPLATE = (_PROMPTS_DIR / "input_template.md").read_text(encoding="utf-8")
 
-_MODEL_NAME = "gemini-2.5-flash"
+_MODEL_NAME = "gemini-3.1-flash-lite"
 
 # ── 상수 ─────────────────────────────────────────────────────────────────────
 
@@ -102,6 +102,7 @@ async def _call_gemini(prompt: str) -> str:
     config = types.GenerateContentConfig(
         system_instruction=_SYSTEM_PROMPT,
         response_mime_type="application/json",
+        thinking_config=types.ThinkingConfig(thinking_level="minimal"),
     )
     last_exc: Exception | None = None
 
@@ -263,7 +264,7 @@ def _build_prompt(ctx: dict) -> str:
             over = avg_start - rec_hi
             note += f" — 권장보다 {over//60}시간 {over%60}분 늦음 ⚠)"
         elif avg_start < rec_lo:
-            note += " — 권장보다 이름 ✅)"
+            note += " — 권장보다 빠름 ✅)"
         else:
             note += " — 권장 시간대 ✅)"
         return note

@@ -28,7 +28,7 @@ EMTAKE 카메라 → 맘아이 서버 ──POST /api/v1/reports/generate──�
 |------|------|
 | 프레임워크 | FastAPI + Uvicorn |
 | ORM / DB | SQLAlchemy 2.0 + MariaDB 10.11 |
-| AI | Google Gemini 2.5 Flash (`gemini-2.5-flash`) |
+| AI | Google Gemini 3.1 Flash-Lite (`gemini-3.1-flash-lite`) |
 | 인증 | python-jose (JWT HS256 검증) |
 | 스케줄러 | APScheduler (매주 월요일 10:00 KST rolling 삭제) |
 | 컨테이너 | Docker + docker-compose |
@@ -216,7 +216,7 @@ X-API-Key: <ADMIN_API_KEY 값>
 2. 캐시 확인                   — 동일 주차 리포트 있으면 Gemini 재호출 없이 즉시 반환
 3. 이전 2주치 조회 (1회)       — 트렌드 계산 + AI 컨텍스트 공용
 4. 집계                        — 주간 요약(nap_count·humidity·brightness 포함) / 일별 / 호흡 / 체온 / 트렌드
-5. Gemini 비동기 호출          — 최대 3회 재시도, 3필드 검증, JSON 보정 재호출
+5. Gemini 비동기 호출          — 최대 5회 재시도, 4필드 검증, JSON 보정 재호출
 6. Generated_Reports upsert    — 리포트 저장 후 응답 반환
 ```
 

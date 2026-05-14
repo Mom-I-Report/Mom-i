@@ -9,9 +9,9 @@
 ## 빠른 시작
 
 ```
-1. dev-environment.md   → 로컬 환경 세팅
-2. research.md          → 시스템 전체 구조 파악
-3. plan.md              → 현재 개발 상황 및 남은 작업 확인
+1. dev-environment.md        → 로컬 환경 세팅
+2. research.md               → 시스템 전체 구조 파악
+3. noh/README.md             → 현재 개발 상황 및 의제 처리 현황 확인
 ```
 
 ---
@@ -20,9 +20,9 @@
 
 | 파일 | 설명 | 마지막 갱신 |
 |------|------|------------|
-| [plan.md](./plan.md) | 전체 개발 계획 (P0~P3 우선순위, 미완료 작업 목록) | 2026-04-19 |
-| [research.md](./research.md) | 리포트 생성 시스템 심층 분석 (전 레이어 코드 기준) | 2026-04-19 |
-| [dev-environment.md](./dev-environment.md) | 로컬 개발 환경 세팅, 패키지 목록, API 테스트 방법 | 2026-04-19 |
+| [research.md](./research.md) | 리포트 생성 시스템 심층 분석 (전 레이어 코드 기준) | 2026-04-27 |
+| [dev-environment.md](./dev-environment.md) | 로컬 개발 환경 세팅, 패키지 목록, API 테스트 방법 | 2026-04-27 |
+| [report-delivery-options.md](./report-delivery-options.md) | 앱팀 협의용 리포트 전달 방식 4가지 옵션 비교 | 2026-04-27 |
 
 ---
 
@@ -53,9 +53,9 @@
 
 - **스택:** FastAPI + SQLAlchemy + MariaDB 10.11 + Gemini (google-genai)
 - **DB:** Weekly_Data (12주 보존), Generated_Reports (5주 보존)
-- **AI:** Gemini 3 Flash — async, 재시도(최대 3회), 3필드 검증, JSON 출력 강제
+- **AI:** `gemini-3.1-flash-lite` — async, 재시도(최대 5회), 4필드 검증, JSON 출력 강제
 
-> 전체 플로우 상세 → [noh/system-flow-2026-04-27.md](./noh/system-flow-2026-04-27.md)
+> 전체 플로우 상세 → [noh/시스템-흐름-2026-05-12.md](./noh/시스템-흐름-2026-05-12.md)
 
 ---
 

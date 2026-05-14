@@ -13,7 +13,7 @@ _scheduler = BackgroundScheduler(timezone="Asia/Seoul")
 
 
 def _cleanup_old_data():
-    """3주치 초과 WeeklyData + GeneratedReport 물리 삭제"""
+    """보존 기간 초과 데이터 물리 삭제 (Generated_Reports 5주 초과 / Weekly_Data 12주 초과)"""
     from app.infrastructure.database.session import SessionLocal
     from app.infrastructure.database.repository.report_repo import delete_old_data
 

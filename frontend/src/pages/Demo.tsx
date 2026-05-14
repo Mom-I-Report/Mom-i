@@ -88,6 +88,21 @@ const Demo: React.FC = () => {
       const pdfH = Math.round(pdfW * canvas.height / canvas.width);
       const pdf = new jsPDF({ orientation: pdfH > pdfW ? 'portrait' : 'landscape', unit: 'mm', format: [pdfW, pdfH] });
       pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfW, pdfH);
+      const elRect = el.getBoundingClientRect();
+      const scaleX = pdfW / el.offsetWidth;
+      const scaleY = pdfH / el.offsetHeight;
+      el.querySelectorAll<HTMLElement>('[data-ad-link]').forEach(adEl => {
+        const url = adEl.getAttribute('data-ad-link');
+        if (!url) return;
+        const adRect = adEl.getBoundingClientRect();
+        pdf.link(
+          (adRect.left - elRect.left) * scaleX,
+          (adRect.top  - elRect.top)  * scaleY,
+          adRect.width  * scaleX,
+          adRect.height * scaleY,
+          { url },
+        );
+      });
       const label = reportData?.week_label?.replace(/\s/g, '_') ?? 'report';
       pdf.save(`momi-${label}.pdf`);
     } finally {
