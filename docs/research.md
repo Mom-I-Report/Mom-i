@@ -26,7 +26,7 @@
 |------|------|
 | 프레임워크 | FastAPI 0.135.3 + Uvicorn 0.44.0 |
 | ORM / DB | SQLAlchemy 2.0.49 + MariaDB 10.11 (Docker) |
-| AI | google-genai (Gemini 3 Flash Preview) |
+| AI | google-genai (`gemini-3.1-flash-lite`) |
 | 인증 | python-jose (JWT HS256 검증) |
 | 스케줄러 | APScheduler 3.11.2 |
 
@@ -95,65 +95,17 @@ UNIQUE KEY: `(ser_no, week_start)`
 
 ## 5. 리포트 생성 파이프라인 (6단계)
 
-```
-POST /api/v1/reports/generate
-  │
-  ├─ 1. Weekly_Data UPSERT          ← 항상 최신 원본 저장
-  ├─ 2. Generated_Reports 캐시 확인 ← HIT 시 Gemini 재호출 없이 즉시 반환
-  ├─ 3. 이전 2주치 조회 (1회)       ← trend + AI context 공용
-  ├─ 4. 집계
-  │     ├─ summary  (avg_sleep_h, avg_restless_min, cry_count, ...)
-  │     ├─ daily    (요일별 sleep_h, restless_min)
-  │     ├─ breath   (breath_avg, is_normal, normal_range)
-  │     ├─ body_temp(body_temp_avg, status: 정상/미열주의/발열의심)
-  │     └─ trend    (전주 대비 수면·뒤척임·울음·호흡·체온 차이)
-  ├─ 5. gemini_client.generate_insight()
-  │     ├─ 최대 3회 재시도
-  │     ├─ response_mime_type: application/json 강제
-  │     └─ _validate_json() → 필드 누락 시 보정 재호출
-  └─ 6. Generated_Reports UPSERT → 응답 반환
-```
+> 상세 플로우: [docs/noh/시스템-흐름-2026-05-12.md](./noh/시스템-흐름-2026-05-12.md)
+
+요약: Weekly_Data UPSERT → 캐시 확인 → 이전 2주치 조회 → 집계(summary/daily/breath/body_temp/trend) → Gemini 비동기 호출(최대 5회 재시도, 4필드 검증) → Generated_Reports UPSERT → 응답 반환
 
 ---
 
 ## 6. Gemini 입출력 구조
 
-### 시스템 프롬프트 구성 (5파일 합산 → system_instruction)
+> 상세 내용: [docs/noh/llm.md](./noh/llm.md)
 
-```
-system.md       ← AI 역할, HARD RULES, 톤
-knowledge.md    ← AAP 기준값, 수면 교육법, 원더윅스 주령
-age_policy.md   ← 월령별 수면법 허용/금지
-reasoning.md    ← 추론 규칙 (확정 표현 금지, 데이터 근거 강제)
-output_format.md← JSON 출력 형식 + 필드별 규칙
-```
-
-`input_template.md`는 요청마다 변수 치환 후 user prompt로 사용.
-
-### Gemini 출력 JSON
-
-```json
-{
-  "ai_comment": [
-    {"type": "caution"|"good", "icon": "🌡️", "title": "...", "text": "..."}
-  ],
-  "sleep_guide": {
-    "method_name": "퍼버법",
-    "title": "...",
-    "reason": "...",
-    "steps": ["1단계...", "2단계...", "3단계..."],
-    "kick_action": "오늘 밤 바로 실행할 것"
-  },
-  "age_kick": {
-    "title": "8개월 분리불안",
-    "text": "...",
-    "is_wonder_weeks": true
-  }
-}
-```
-
-- `sleep_guide`: 0~2개월은 null (수면 교육 금지 월령)
-- `kick_action`: Optional
+요약: 5개 프롬프트 파일(`system·knowledge·age_policy·reasoning·output_format`)을 조합한 system_instruction + `input_template.md` 기반 user prompt → Gemini `gemini-3.1-flash-lite` 호출 → `ai_comment / sleep_guide / age_kick / parent_message` 4필드 JSON 반환
 
 ---
 

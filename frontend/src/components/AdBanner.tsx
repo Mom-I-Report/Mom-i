@@ -13,10 +13,11 @@ const AdBanner: React.FC<AdBannerProps> = ({ title, description, imageUrl, linkU
   const isVertical = layout === 'vertical';
 
   return (
-    <a 
-      href={linkUrl} 
-      target="_blank" 
-      rel="noopener noreferrer" 
+    <a
+      href={linkUrl}
+      data-ad-link={linkUrl}
+      target="_blank"
+      rel="noopener noreferrer"
       style={{
         display: 'flex',
         flexDirection: isVertical ? 'column' : 'row',

@@ -452,7 +452,7 @@ async def generate_report(db: Session, req: GenerateReportRequest) -> GenerateRe
     Step 5 — AI 조언 생성 (async)
       _build_ai_context()로 최대 3주치 컨텍스트 dict 구성.
       await generate_insight()로 Gemini 비동기 호출
-        → 재시도(최대 3회) + 3필드 검증(ai_comment/sleep_guide/age_kick) + 토큰 로깅 포함.
+        → 재시도(최대 5회) + 4필드 검증(ai_comment/sleep_guide/age_kick/parent_message) + 토큰 로깅 포함.
 
     Step 6 — 리포트 저장
       Generated_Reports에 upsert 후 GenerateReportResponse 반환.

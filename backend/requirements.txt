@@ -25,9 +25,6 @@ cryptography==41.0.4
 # ── HTTP Client ───────────────────────────────────────────────────────────────
 httpx==0.28.1
 
-# ── PDF (선택) — infrastructure/pdf/generator.py 스켈레톤 사용 시 설치 ──────────
-# reportlab==4.2.2
-
 # ── Async HTTP (Gemini async 클라이언트 내부 의존) ────────────────────────────
 httpcore==1.0.7
 

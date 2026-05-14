@@ -377,7 +377,7 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
       tag="MOM-I"
       title="맘아이 카메라로 수면을 기록하세요"
       description="설치 한 번으로 호흡·체온·뒤척임을 자동 측정. 매주 AI 리포트로 아이 수면을 한눈에 확인하세요."
-      imageUrl="https://www.mom-i.com/img/main01_img_pc.png"
+      imageUrl="/ad-momi-main.png"
       linkUrl="https://www.mom-i.com/"
     />
   );
@@ -474,7 +474,7 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
               tag="MOM-I"
               title="맘아이 카메라"
               description="호흡·체온·뒤척임을 실시간으로 감지하는 AI 수면 카메라"
-              imageUrl="https://www.mom-i.com/img/main06_img1.jpg"
+              imageUrl="/ad-momi-6.jpg"
               linkUrl="https://www.mom-i.com/"
             />
           </StickyWrapper>
@@ -498,7 +498,7 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
               tag="MOM-I"
               title="지금 바로 시작해보세요"
               description="맘아이 카메라 하나로 아이 수면 걱정 끝"
-              imageUrl="https://www.mom-i.com/img/main10_img1.jpg"
+              imageUrl="/ad-momi-10.jpg"
               linkUrl="https://www.mom-i.com/"
             />
           </StickyWrapper>
