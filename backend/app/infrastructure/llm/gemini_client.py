@@ -28,8 +28,7 @@ _PROMPTS_DIR = Path(__file__).parent / "prompts"
 
 _SYSTEM_FILES = [
     "system.md",        # 역할, HARD RULES, STYLE
-    "knowledge.md",     # 판단 기준 (수면/호흡/체온/수면법/원더윅스)
-    "age_policy.md",    # 월령별 수면법 제한
+    "knowledge.md",     # 판단 기준 (수면/호흡/체온/수면법)
     "reasoning.md",     # 추론 규칙
 ]
 
@@ -58,6 +57,26 @@ _AGE_KICK_FIELDS = ["title", "text", "is_wonder_weeks"]
 _MAX_ATTEMPTS   = 5
 _BACKOFF_BASE   = 5.0
 _RETRYABLE_KEYWORDS = ("429", "quota", "rate", "503", "unavailable")
+
+# 원더윅스 기준 주령 (±1주 이내 → is_wonder_weeks=true)
+_WONDER_WEEKS = {5, 8, 12, 19, 26, 37, 46, 55, 64, 75}
+
+# 월령별 허용 수면법 (age_policy.md 대체 — 호출 시 해당 월령만 주입)
+_AGE_SLEEP_POLICY: list[tuple[int, str | None]] = [
+    (2,   None),                                  # 수면 교육 금지
+    (4,   "쉬닥법, 안눈법"),
+    (6,   "쉬닥법, 퍼버법(초기), 픽업앤다운"),
+    (9,   "퍼버법, 쉬닥법, 픽업앤다운"),
+    (12,  "퍼버법 중심, 루틴 강화"),
+    (999, "퍼버법, 의자법, 루틴 일관성"),
+]
+
+
+def _get_sleep_policy(age_months: int) -> str | None:
+    for max_age, methods in _AGE_SLEEP_POLICY:
+        if age_months <= max_age:
+            return methods
+    return _AGE_SLEEP_POLICY[-1][1]
 
 
 # ── 내부 헬퍼 ────────────────────────────────────────────────────────────────
@@ -201,9 +220,15 @@ def _build_prompt(ctx: dict) -> str:
     """
     tw = ctx["this_week"]
 
-    # ── 주령 계산 (원더윅스 판정 보조) ──────────────────────────────────────
-    age_months = ctx["baby_age_months"]
-    age_weeks  = round(age_months * 4.3)
+    # ── 주령 계산 + 사전 판정 ────────────────────────────────────────────────
+    age_months    = ctx["baby_age_months"]
+    age_weeks     = round(age_months * 4.3)
+    is_ww         = any(abs(age_weeks - ww) <= 1 for ww in _WONDER_WEEKS)
+    sleep_policy  = _get_sleep_policy(age_months)
+    policy_text   = (
+        "없음 (0~2개월 — sleep_guide는 반드시 null)"
+        if sleep_policy is None else sleep_policy
+    )
 
     # ── 4_INPUT 템플릿 변수 치환 ─────────────────────────────────────────────
     prompt = (
@@ -214,6 +239,7 @@ def _build_prompt(ctx: dict) -> str:
         .replace("{{temperature}}",     f"평균 {tw['temp_avg']}°C")
         .replace("{{pattern_summary}}", ctx.get("pattern_summary", ""))
     )
+    prompt += f"\n허용 수면법: {policy_text}\n원더윅스 해당: {'true' if is_ww else 'false'}"
 
     # ── 상세 데이터 블록 ─────────────────────────────────────────────────────
     breath_status = (
