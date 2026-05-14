@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
-import html2canvas from 'html2canvas';
 import ReportView from '../components/ReportView';
+import { downloadPdf } from '../utils/pdfExport';
 
 const parseDuration = (s: string): number => {
   if (!s) return 0;
@@ -28,16 +28,16 @@ const getThisMonday = (): string => {
   return toDateStr(monday);
 };
 
-const EMPTY_SLEEP = Array.from({ length: 7 }, () => ({
-  sleep_min: 0,
-  restless_min: 0,
-  wakeup_count: null as number | null,
-  device_status: null as string | null,
-  sessions: null as any[] | null,
-}));
+type SleepEntry = {
+  sleep_min: number;
+  restless_min: number;
+  wakeup_count: number | null;
+  device_status: string | null;
+  sessions: any[] | null;
+};
 
 // 초기 목 데이터 — 3개월 아기(민우) 기준
-const MOCK_SLEEP = [
+const MOCK_SLEEP: SleepEntry[] = [
   { sleep_min: 820, restless_min: 25, wakeup_count: null, device_status: null, sessions: null },
   { sleep_min: 850, restless_min: 30, wakeup_count: null, device_status: null, sessions: null },
   { sleep_min: 780, restless_min: 45, wakeup_count: null, device_status: null, sessions: null },
@@ -45,7 +45,7 @@ const MOCK_SLEEP = [
   { sleep_min: 840, restless_min: 35, wakeup_count: null, device_status: null, sessions: null },
   { sleep_min: 810, restless_min: 28, wakeup_count: null, device_status: null, sessions: null },
   { sleep_min: 870, restless_min: 22, wakeup_count: null, device_status: null, sessions: null },
-] as typeof EMPTY_SLEEP;
+];
 
 const Demo: React.FC = () => {
   const [reportData, setReportData] = useState<any>(null);
@@ -82,29 +82,8 @@ const Demo: React.FC = () => {
     if (!el) return;
     setPdfLoading(true);
     try {
-      const canvas = await html2canvas(el, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' });
-      const { jsPDF } = await import('jspdf');
-      const pdfW = 210;
-      const pdfH = Math.round(pdfW * canvas.height / canvas.width);
-      const pdf = new jsPDF({ orientation: pdfH > pdfW ? 'portrait' : 'landscape', unit: 'mm', format: [pdfW, pdfH] });
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfW, pdfH);
-      const elRect = el.getBoundingClientRect();
-      const scaleX = pdfW / el.offsetWidth;
-      const scaleY = pdfH / el.offsetHeight;
-      el.querySelectorAll<HTMLElement>('[data-ad-link]').forEach(adEl => {
-        const url = adEl.getAttribute('data-ad-link');
-        if (!url) return;
-        const adRect = adEl.getBoundingClientRect();
-        pdf.link(
-          (adRect.left - elRect.left) * scaleX,
-          (adRect.top  - elRect.top)  * scaleY,
-          adRect.width  * scaleX,
-          adRect.height * scaleY,
-          { url },
-        );
-      });
       const label = reportData?.week_label?.replace(/\s/g, '_') ?? 'report';
-      pdf.save(`momi-${label}.pdf`);
+      await downloadPdf(el, label);
     } finally {
       setPdfLoading(false);
     }

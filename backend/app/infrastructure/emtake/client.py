@@ -43,6 +43,8 @@ logger = logging.getLogger(__name__)
 _EMTAKE_URL = "http://relay.emtake.com/api/query"
 _REQUEST_TIMEOUT = 10.0
 
+_client = httpx.AsyncClient(timeout=_REQUEST_TIMEOUT)
+
 
 # ── 파싱 유틸 ────────────────────────────────────────────────────────────────
 
@@ -128,9 +130,8 @@ async def _fetch_raw(
         cmd, account, uid, val, date_str,
     )
 
-    async with httpx.AsyncClient(timeout=_REQUEST_TIMEOUT) as client:
-        response = await client.post(_EMTAKE_URL, json=payload)
-        response.raise_for_status()
+    response = await _client.post(_EMTAKE_URL, json=payload)
+    response.raise_for_status()
 
     raw = response.json()
     data = _parse_response(raw)

@@ -33,6 +33,7 @@ def start_scheduler():
         trigger=CronTrigger(day_of_week="mon", hour=10, minute=0),
         id="cleanup_old_data",
         replace_existing=True,
+        max_instances=1,
     )
     _scheduler.start()
     logger.info("[스케줄러] rolling 삭제 스케줄러 시작 (매주 월요일 10:00)")
