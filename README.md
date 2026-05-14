@@ -92,6 +92,8 @@ mom-i/
 │       ├── pages/
 │       │   ├── Demo.tsx            ← AI 테스트 페이지 (JSON 업로드, PDF 저장, 보기 모드)
 │       │   └── Admin.tsx           ← 관리자 대시보드 (기기 목록, 탭, PDF 저장, 보기 모드)
+│       ├── utils/
+│       │   └── pdfExport.ts        ← PDF 생성 공통 유틸 (html2canvas + jsPDF)
 │       ├── main-demo.tsx           ← demo.html 진입점
 │       └── main-admin.tsx          ← admin.html 진입점
 └── docs/
@@ -128,20 +130,41 @@ curl http://localhost:8000/health
 # 1. 환경변수 설정
 cp .env.example .env
 
-# 2. 패키지 설치
-cd backend
-pip install -r requirements.txt
+# 2. 백엔드 패키지 설치
+pip install -r backend/requirements.txt
 
 # 3. DB 마이그레이션 (MariaDB가 실행 중이어야 함)
+cd backend
 alembic revision --autogenerate -m "initial"
 alembic upgrade head
 
-# 4. 서버 실행
+# 4. 백엔드 실행
 python run.py
 ```
 
 접속: `http://localhost:8000`  
 Swagger UI: `http://localhost:8000/docs`
+
+### 프론트엔드
+
+```bash
+cd frontend
+npm install
+npm run dev      # http://localhost:5173
+npm run build    # dist/ 출력
+```
+
+- `http://localhost:5173/demo.html` — AI 리포트 생성 테스트
+- `http://localhost:5173/admin.html` — 관리자 대시보드
+
+### 테스트
+
+```bash
+cd backend
+pytest                                          # 전체 테스트
+pytest tests/path/to/test.py::test_name        # 단일 테스트
+pytest --cov=app                               # 커버리지
+```
 
 ---
 
@@ -265,13 +288,13 @@ Gemini가 반환하는 JSON 구조 (`GenerateReportResponse`의 AI 생성 필드
 | 파일 | 역할 |
 |------|------|
 | `system.md` | AI 역할 정의, HARD RULES 7개, 응답 톤/스타일 |
-| `knowledge.md` | 도메인 지식 (AAP 기준, 수면 교육법 7개, 원더윅스 주령) |
-| `age_policy.md` | 월령별 수면법 허용/금지 정책 (0개월~13개월+) |
+| `knowledge.md` | 도메인 지식 (AAP 기준, 수면 교육법 7개 등) |
 | `reasoning.md` | 추론 규칙 (확정 표현 금지, 데이터 기반 설명 강제) |
 | `output_format.md` | JSON 출력 형식 + 필드별 작성 규칙 |
 | `input_template.md` | user prompt 템플릿 (변수 치환 방식) |
 
-서버 시작 시 `system.md → knowledge.md → age_policy.md → reasoning.md → output_format.md` 순으로 합쳐 `system_instruction`으로 주입. `input_template.md`는 요청마다 변수 치환 후 user prompt로 사용.
+서버 시작 시 `system.md → knowledge.md → reasoning.md → output_format.md` 순으로 합쳐 `system_instruction`으로 주입. `input_template.md`는 요청마다 변수 치환 후 user prompt로 사용.  
+월령별 허용 수면법(`age_policy`)과 원더윅스 해당 여부(`is_wonder_weeks`)는 Python에서 사전 계산해 user prompt에 주입한다.
 
 ---
 
@@ -283,6 +306,14 @@ Gemini가 반환하는 JSON 구조 (`GenerateReportResponse`의 AI 생성 필드
 | `Generated_Reports` | 생성된 리포트 전체 JSON (앱 열람용) | **5주** rolling |
 
 스케줄러가 매주 월요일 10:00 KST에 자동 물리 삭제. 소프트 삭제 없음.
+
+---
+
+## 코드 작성 규칙
+
+- 독립적으로 추가하는 메서드/함수는 파일 **맨 아래**에 작성 (git 충돌 방지). 순서가 의미를 가지는 경우(if-else 분기 등)는 예외.
+- Pydantic v2: `model_validate()` 사용, `dict()` 대신 `model_dump(mode="json")`.
+- DB에서 꺼낸 JSON을 Pydantic 모델로 변환할 때 `Model(**json_dict)` 대신 `Model.model_validate(json_dict)`.
 
 ---
 
