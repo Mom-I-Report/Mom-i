@@ -158,6 +158,8 @@ def _build_daily(req: GenerateReportRequest) -> List[DailySummary]:
             day=_DAY_KO[s.date.weekday()],
             sleep_h=round(s.sleep_min / 60, 1),
             restless_min=s.restless_min,
+            breath_avg=s.breath_avg,
+            body_temp_avg=s.body_temp_avg,
         )
         for s in req.sleep
     ]
@@ -228,6 +230,9 @@ def _build_trend(
         return None
 
     prev = prev_data[0]  # 직전 주
+
+    if not prev.sleep_json:
+        return None
 
     # 이전 주 수면 집계 (sleep_json은 [{sleep_min, restless_min, ...}, ...] 형태)
     prev_sleeps   = [s["sleep_min"]    for s in prev.sleep_json]
@@ -382,6 +387,7 @@ def _build_ai_context(
                 "restless_min":  s.restless_min,
                 "wakeup_count":  s.wakeup_count,
                 "device_status": s.device_status,
+                "breath_avg":    s.breath_avg,
                 "nap_sessions":  sum(1 for sess in (s.sessions or []) if sess.is_nap),
                 "night_sessions": [
                     {"start": sess.start, "end": sess.end,
@@ -394,7 +400,7 @@ def _build_ai_context(
     }
 
     # 직전 주 데이터가 있으면 지난주 비교 블록 추가
-    if len(prev_data) >= 1:
+    if len(prev_data) >= 1 and prev_data[0].sleep_json:
         p = prev_data[0]
         ps = [s["sleep_min"]    for s in p.sleep_json]
         pr = [s["restless_min"] for s in p.sleep_json]
@@ -408,7 +414,7 @@ def _build_ai_context(
         }
 
     # 2주 전 데이터가 있으면 추가 (장기 트렌드 분석용)
-    if len(prev_data) >= 2:
+    if len(prev_data) >= 2 and prev_data[1].sleep_json:
         p2 = prev_data[1]
         ps2 = [s["sleep_min"]    for s in p2.sleep_json]
         pr2 = [s["restless_min"] for s in p2.sleep_json]
@@ -535,7 +541,7 @@ async def get_reports_list(db: Session, ser_no: str) -> ReportListResponse:
     """
     reports = report_repo.get_reports_list(db, ser_no, limit=10)
     if not reports:
-        raise ValueError("조회 가능한 리포트가 없습니다.")
+        return ReportListResponse(reports=[], total=0)
 
     items = []
     for r in reports:

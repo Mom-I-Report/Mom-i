@@ -1,4 +1,5 @@
 from pathlib import Path
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 # config.py 기준 3단계 상위 = 프로젝트 루트 디렉토리
@@ -19,6 +20,20 @@ class Settings(BaseSettings):
     class Config:
         env_file = str(_ROOT_ENV)
         extra = "ignore"
+
+    @model_validator(mode="after")
+    def check_required_env(self) -> "Settings":
+        missing = [
+            name for name, val in {
+                "GEMINI_API_KEY": self.GEMINI_API_KEY,
+                "DATABASE_URL":   self.DATABASE_URL,
+                "JWT_SECRET":     self.JWT_SECRET,
+                "ADMIN_API_KEY":  self.ADMIN_API_KEY,
+            }.items() if not val
+        ]
+        if missing:
+            raise ValueError(f"필수 환경변수가 설정되지 않았습니다: {', '.join(missing)}")
+        return self
 
 
 settings = Settings()

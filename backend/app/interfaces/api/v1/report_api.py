@@ -11,8 +11,12 @@ report_api.py — 리포트 API 라우터
   GET  /* :       Authorization: Bearer <JWT> (맘아이 앱 → 리포트 서버)
                   JWT payload의 ser_no와 DB의 ser_no 일치 여부를 검증해 데이터를 격리한다.
 """
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.infrastructure.database.session import get_db
 from app.core.security import get_current_ser_no, verify_api_key
@@ -48,7 +52,8 @@ async def generate_report(
     try:
         return await report_service.generate_report(db, req)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("리포트 생성 실패: ser_no=%s", req.ser_no)
+        raise HTTPException(status_code=500, detail="리포트 생성 중 오류가 발생했습니다")
 
 
 @router.get(
@@ -62,12 +67,9 @@ async def get_reports(
 ):
     """
     앱 홈 화면 및 히스토리 목록용. JWT payload의 ser_no 기준으로 본인 데이터만 반환합니다.
-    최근 10건을 최신순으로 리턴합니다.
+    최근 10건을 최신순으로 리턴합니다. 리포트가 없으면 빈 배열 반환.
     """
-    try:
-        return await report_service.get_reports_list(db, ser_no)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    return await report_service.get_reports_list(db, ser_no)
 
 
 @router.get(

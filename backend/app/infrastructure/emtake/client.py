@@ -30,6 +30,7 @@ Type 구분:
   - Breath/Temp/IndoorTemp/dB 는 Min/Max 만 제공 → avg = (Min + Max) / 2 로 계산.
   - BabyInfo 응답의 생년월일은 baby_age_months 계산에만 사용하고 개인정보는 저장하지 않는다.
 """
+import asyncio
 import json
 import logging
 import re
@@ -279,7 +280,6 @@ async def fetch_environment(account: str, uid: str, user_type: str = "LLMREPORT"
       {"temp_avg": 23.0, "temp_max": 25.0, "temp_min": 21.0,
        "db_avg": 40, "db_max": 58}
     """
-    import asyncio
     temp_raw, db_raw = await asyncio.gather(
         _fetch_raw(account, uid, "IndoorTemp", user_type=user_type),
         _fetch_raw(account, uid, "dB", user_type=user_type),
@@ -319,7 +319,7 @@ def _parse_wakeup_count(day_wakeup: str) -> Optional[int]:
 def _classify_sessions(sessions: list) -> list:
     """
     수면 세션 목록에 낮잠 여부(is_nap)를 추가한다.
-    start 시각이 21:00 이전이면 낮잠, 이후면 밤잠으로 분류.
+    start 시각이 04:00 초과 21:00 미만이면 낮잠, 그 외(밤·새벽)는 밤잠.
     """
     result = []
     for s in sessions:
@@ -329,7 +329,7 @@ def _classify_sessions(sessions: list) -> list:
             "end":          s.get("end", ""),
             "duration_min": int(s.get("duration_min", 0)),
             "wake_up":      int(s.get("wake_up", 0)),
-            "is_nap":       start_h < 21,
+            "is_nap":       4 < start_h < 21,
         })
     return result
 
@@ -425,7 +425,6 @@ async def build_generate_request_from_sensor(
     월간 데이터는 마지막 날 응답에서 추출.
     Events는 미지원이므로 0 처리.
     """
-    import asyncio
     from datetime import timedelta
 
     dates = [ref_date - timedelta(days=i) for i in range(6, -1, -1)]
@@ -438,14 +437,16 @@ async def build_generate_request_from_sensor(
     days = [parse_sensor_data_day(raw, d) for raw, d in zip(raws, dates)]
 
     # 7일치 수치 집계
+    n = len(days)
+
     def _avg_int(key: str) -> int:
-        return round(sum(d[key] for d in days) / 7)
+        return round(sum(d[key] for d in days) / n)
 
     def _avg_float(key: str, ndigits: int = 2) -> float:
-        return round(sum(d[key] for d in days) / 7, ndigits)
+        return round(sum(d[key] for d in days) / n, ndigits)
 
-    b_min  = _avg_int("breath_min")
-    b_max  = _avg_int("breath_max")
+    b_min  = min(d["breath_min"] for d in days)
+    b_max  = max(d["breath_max"] for d in days)
     t_min  = _avg_float("body_temp_min")
     t_max  = _avg_float("body_temp_max")
     it_min = _avg_float("temp_min", 1)
@@ -484,6 +485,8 @@ async def build_generate_request_from_sensor(
             "date":         d["date"],
             "sleep_min":    d["sleep_min"],
             "restless_min": d["restless_min"],
+            "breath_avg":    d["breath_avg"],
+            "body_temp_avg": d["body_temp_avg"],
         }
         if d.get("wakeup_count") is not None:
             entry["wakeup_count"] = d["wakeup_count"]
@@ -521,3 +524,8 @@ async def build_generate_request_from_sensor(
         "monthly":     monthly,
         "events":      {"cry_count": 0, "leave_count": 0},
     }
+
+
+async def close() -> None:
+    """앱 종료 시 httpx 클라이언트를 정상 종료한다."""
+    await _client.aclose()

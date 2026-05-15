@@ -133,6 +133,8 @@ async def _call_gemini(prompt: str) -> str:
                 config=config,
             )
             _log_token_usage(response)
+            if not response.text:
+                raise ValueError("Gemini 응답에 텍스트가 없습니다 (safety block 또는 빈 응답)")
             return response.text.strip()
 
         except Exception as exc:
@@ -309,6 +311,8 @@ def _build_prompt(ctx: dict) -> str:
             if ns:
                 ns0 = ns[0]
                 line += f" / 밤잠 {ns0['start']}~{ns0['end']}({ns0['duration_min']}분)"
+        if d.get("breath_avg") is not None:
+            line += f" / 호흡 {d['breath_avg']}회/분"
         if d.get("device_status") and d["device_status"] != "NORMAL":
             line += f" [{d['device_status']}]"
         day_lines_list.append(line)

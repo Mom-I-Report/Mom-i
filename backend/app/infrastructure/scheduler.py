@@ -28,6 +28,8 @@ def _cleanup_old_data():
 
 
 def start_scheduler():
+    # 주의: uvicorn --workers N (멀티 프로세스) 환경에서는 워커마다 스케줄러가 기동됨.
+    # 현재는 단일 워커로 운영하므로 문제없음. 스케일아웃 시 별도 처리 필요.
     _scheduler.add_job(
         _cleanup_old_data,
         trigger=CronTrigger(day_of_week="mon", hour=10, minute=0),

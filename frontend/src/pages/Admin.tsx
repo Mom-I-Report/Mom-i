@@ -5,7 +5,7 @@ import { downloadPdf } from '../utils/pdfExport';
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
 
 const Admin: React.FC = () => {
-  const [apiKey, setApiKey] = useState((import.meta.env.VITE_API_KEY as string | undefined) ?? '');
+  const [apiKey, setApiKey] = useState('');
   const [devices, setDevices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

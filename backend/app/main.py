@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 
 logging.basicConfig(
     level=logging.INFO,
@@ -14,11 +15,22 @@ import app.domain.report.entity  # noqa
 from app.interfaces.api.v1 import report_api, admin_api
 from app.infrastructure.database.session import create_tables
 from app.infrastructure.scheduler import start_scheduler
+from app.infrastructure.emtake import client as emtake_client
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_tables()
+    start_scheduler()
+    yield
+    await emtake_client.close()
+
 
 app = FastAPI(
     title="맘아이 리포트 서버",
     description="맘아이 앱 연동 영유아 주간 수면 AI 리포트 생성·보관·조회 서버",
     version="0.2.0",
+    lifespan=lifespan,
 )
 
 # ── CORS ──
@@ -29,12 +41,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-def on_startup():
-    create_tables()
-    start_scheduler()
 
 
 # ── 라우터 등록 ──

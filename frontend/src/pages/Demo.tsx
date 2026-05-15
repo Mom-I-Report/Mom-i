@@ -3,7 +3,7 @@ import ReportView from '../components/ReportView';
 import { downloadPdf } from '../utils/pdfExport';
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
-const DEFAULT_API_KEY = (import.meta.env.VITE_API_KEY as string | undefined) ?? 'dev-local-key';
+const DEFAULT_API_KEY = 'dev-local-key';
 
 const parseDuration = (s: string): number => {
   if (!s) return 0;
@@ -37,17 +37,19 @@ type SleepEntry = {
   wakeup_count: number | null;
   device_status: string | null;
   sessions: any[] | null;
+  breath_avg: number | null;
+  body_temp_avg: number | null;
 };
 
 // 초기 목 데이터 — 3개월 아기(민우) 기준
 const MOCK_SLEEP: SleepEntry[] = [
-  { sleep_min: 820, restless_min: 25, wakeup_count: null, device_status: null, sessions: null },
-  { sleep_min: 850, restless_min: 30, wakeup_count: null, device_status: null, sessions: null },
-  { sleep_min: 780, restless_min: 45, wakeup_count: null, device_status: null, sessions: null },
-  { sleep_min: 900, restless_min: 20, wakeup_count: null, device_status: null, sessions: null },
-  { sleep_min: 840, restless_min: 35, wakeup_count: null, device_status: null, sessions: null },
-  { sleep_min: 810, restless_min: 28, wakeup_count: null, device_status: null, sessions: null },
-  { sleep_min: 870, restless_min: 22, wakeup_count: null, device_status: null, sessions: null },
+  { sleep_min: 820, restless_min: 25, wakeup_count: null, device_status: null, sessions: null, breath_avg: 38, body_temp_avg: 0.3 },
+  { sleep_min: 850, restless_min: 30, wakeup_count: null, device_status: null, sessions: null, breath_avg: 42, body_temp_avg: 0.5 },
+  { sleep_min: 780, restless_min: 45, wakeup_count: null, device_status: null, sessions: null, breath_avg: 36, body_temp_avg: 0.2 },
+  { sleep_min: 900, restless_min: 20, wakeup_count: null, device_status: null, sessions: null, breath_avg: 44, body_temp_avg: 0.6 },
+  { sleep_min: 840, restless_min: 35, wakeup_count: null, device_status: null, sessions: null, breath_avg: 39, body_temp_avg: 0.4 },
+  { sleep_min: 810, restless_min: 28, wakeup_count: null, device_status: null, sessions: null, breath_avg: 41, body_temp_avg: 0.3 },
+  { sleep_min: 870, restless_min: 22, wakeup_count: null, device_status: null, sessions: null, breath_avg: 37, body_temp_avg: 0.5 },
 ];
 
 const Demo: React.FC = () => {
@@ -101,6 +103,8 @@ const Demo: React.FC = () => {
       if (s.wakeup_count != null) entry.wakeup_count = s.wakeup_count;
       if (s.device_status) entry.device_status = s.device_status;
       if (s.sessions) entry.sessions = s.sessions;
+      if (s.breath_avg != null) entry.breath_avg = s.breath_avg;
+      if (s.body_temp_avg != null) entry.body_temp_avg = s.body_temp_avg;
       return entry;
     });
     const environment: any = { temp_avg: env.tempAvg, temp_max: env.tempMax, temp_min: env.tempMin, db_max: env.dbMax, db_avg: env.dbMax };
@@ -172,7 +176,7 @@ const Demo: React.FC = () => {
     if (json.name) setBabyName(json.name);
 
     const classifySessions = (sessions: any[]): any[] =>
-      sessions.map(s => ({ ...s, is_nap: parseInt(s.start?.split(':')[0] ?? '0') < 21 }));
+      sessions.map(s => { const h = parseInt(s.start?.split(':')[0] ?? '0'); return { ...s, is_nap: h > 4 && h < 21 }; });
 
     const parseWakeupCount = (s: string): number | null => {
       const m = s?.match(/\d+/);
@@ -184,12 +188,22 @@ const Demo: React.FC = () => {
       const date = new Date(wy, wm - 1, wd + i);
       const key = toDateStr(date);
       const sd = json[key]?.SleepData ?? {};
+      const b = json[key]?.Breath;
+      const breathAvg = b?.Min != null && b?.Max != null
+        ? Math.round((b.Min + b.Max) / 2)
+        : null;
+      const t = json[key]?.Temp;
+      const bodyTempAvg = t?.Min != null && t?.Max != null
+        ? Math.round((t.Min + t.Max) / 2 * 100) / 100
+        : null;
       return {
         sleep_min: parseDuration(sd.day_gs ?? ''),
         restless_min: parseDuration(sd.day_pr ?? ''),
         wakeup_count: parseWakeupCount(sd.day_wakeup ?? ''),
         device_status: sd.status ?? null,
         sessions: sd.sessions ? classifySessions(sd.sessions) : null,
+        breath_avg: breathAvg,
+        body_temp_avg: bodyTempAvg,
       };
     });
     setSleepData(newSleepData);
@@ -253,9 +267,13 @@ const Demo: React.FC = () => {
     e.target.value = '';
   };
 
-  const handleSleepChange = (index: number, field: 'sleep_min' | 'restless_min', value: number) => {
+  const handleSleepChange = (index: number, field: 'sleep_min' | 'restless_min' | 'breath_avg' | 'body_temp_avg', value: string) => {
     const newData = [...sleepData];
-    newData[index] = { ...newData[index], [field]: value };
+    if (field === 'breath_avg' || field === 'body_temp_avg') {
+      newData[index] = { ...newData[index], [field]: value === '' ? null : Number(value) };
+    } else {
+      newData[index] = { ...newData[index], [field]: Number(value) };
+    }
     setSleepData(newData);
   };
 
@@ -307,7 +325,7 @@ const Demo: React.FC = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <thead>
                 <tr>
-                  {['요일', '수면 (분)', '뒤척임 (분)'].map(h => (
+                  {['요일', '수면 (분)', '뒤척임 (분)', '호흡수'].map(h => (
                     <th key={h} style={{ padding: '5px 3px', fontSize: '10px', fontWeight: 700, color: 'var(--gray-mut)', textAlign: 'center', borderBottom: '1px solid var(--black)' }}>{h}</th>
                   ))}
                 </tr>
@@ -317,10 +335,13 @@ const Demo: React.FC = () => {
                   <tr key={i}>
                     <td style={{ padding: '4px', textAlign: 'center', fontWeight: 700, color: 'var(--black)', borderBottom: '1px solid var(--gray-lt)' }}>{getDayLabel(i)}</td>
                     <td style={{ padding: '4px', borderBottom: '1px solid var(--gray-lt)' }}>
-                      <input type="number" className="input-field" style={{ padding: '5px', textAlign: 'center' }} value={d.sleep_min} onChange={e => handleSleepChange(i, 'sleep_min', Number(e.target.value))} />
+                      <input type="number" className="input-field" style={{ padding: '5px', textAlign: 'center' }} value={d.sleep_min} onChange={e => handleSleepChange(i, 'sleep_min', e.target.value)} />
                     </td>
                     <td style={{ padding: '4px', borderBottom: '1px solid var(--gray-lt)' }}>
-                      <input type="number" className="input-field" style={{ padding: '5px', textAlign: 'center' }} value={d.restless_min} onChange={e => handleSleepChange(i, 'restless_min', Number(e.target.value))} />
+                      <input type="number" className="input-field" style={{ padding: '5px', textAlign: 'center' }} value={d.restless_min} onChange={e => handleSleepChange(i, 'restless_min', e.target.value)} />
+                    </td>
+                    <td style={{ padding: '4px', borderBottom: '1px solid var(--gray-lt)' }}>
+                      <input type="number" className="input-field" style={{ padding: '5px', textAlign: 'center' }} placeholder="—" value={d.breath_avg ?? ''} onChange={e => handleSleepChange(i, 'breath_avg', e.target.value)} />
                     </td>
                   </tr>
                 ))}

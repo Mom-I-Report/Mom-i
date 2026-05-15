@@ -82,6 +82,12 @@ def make_dummy_week(
         today = date.today()
         week_start = today - timedelta(days=today.weekday())
 
+    # 호흡수·체온 범위 먼저 결정 (일별 생성에 사용)
+    breath_min = random.randint(22, 28)
+    breath_max = random.randint(35, 42)
+    body_temp_min = round(random.uniform(0.0, 0.3), 1)
+    body_temp_max = round(random.uniform(0.5, 1.5), 1)
+
     # 7일치 수면 데이터
     sleep_days = []
     for i in range(7):
@@ -95,6 +101,8 @@ def make_dummy_week(
             "wakeup_count":  random.randint(1, 6),
             "device_status": random.choice(["NORMAL", "NORMAL", "NORMAL", "CAUTION"]),
             "sessions":      _make_sessions(sleep_min, i),
+            "breath_avg":    random.randint(breath_min, breath_max),
+            "body_temp_avg": round(random.uniform(body_temp_min, body_temp_max), 2),
         })
 
     # 실내 온도: 최저 < 평균 < 최고
@@ -105,14 +113,10 @@ def make_dummy_week(
     # 소음: EMTAKE는 Max값만 제공 → db_avg = db_max
     db_max = random.randint(45, 75)
 
-    # 호흡수: 최소 < 평균 < 최대
-    breath_min = random.randint(22, 28)
-    breath_max = random.randint(35, 42)
+    # 호흡수: 주간 min/max/avg (일별 breath_avg는 sleep_days에 포함됨)
     breath_avg = random.randint(breath_min, breath_max)
 
-    # 체온 델타값 (절대 체온 아님): 기준치 대비 상승분
-    body_temp_min = round(random.uniform(0.0, 0.3), 1)
-    body_temp_max = round(random.uniform(0.5, 1.5), 1)
+    # 체온 델타값: 주간 min/max/avg (일별 body_temp_avg는 sleep_days에 포함됨)
     body_temp_avg = round(random.uniform(body_temp_min, body_temp_max), 1)
 
     # 습도: 최저 < 평균 < 최고
@@ -122,7 +126,7 @@ def make_dummy_week(
 
     # 조도: 최저 < 평균 < 최고
     bright_min = round(random.uniform(1.0, 5.0), 1)
-    bright_max = round(random.uniform(3.0, 25.0), 1)
+    bright_max = round(random.uniform(max(bright_min, 3.0), 25.0), 1)
     bright_avg = round(random.uniform(bright_min, bright_max), 1)
 
     # 주간 평균 (week_gs/pr)

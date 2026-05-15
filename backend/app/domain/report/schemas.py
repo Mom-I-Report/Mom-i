@@ -55,6 +55,8 @@ class SleepDay(BaseModel):
     wakeup_count: Optional[int] = None      # 총 뒤척임 횟수 (day_wakeup)
     device_status: Optional[str] = None     # 기기 판단 상태 (NORMAL / CAUTION 등)
     sessions: Optional[List[SleepSession]] = None  # 수면 세션 상세
+    breath_avg: Optional[int] = None        # 당일 호흡수 평균 (EMTAKE Breath Min+Max/2)
+    body_temp_avg: Optional[float] = None  # 당일 체온 델타 평균 (EMTAKE Temp Min+Max/2)
 
 
 class EnvironmentData(BaseModel):
@@ -151,6 +153,8 @@ class DailySummary(BaseModel):
     day: str
     sleep_h: float
     restless_min: int
+    breath_avg: Optional[int] = None       # 당일 호흡수 평균 (없으면 주간 평균으로 표시)
+    body_temp_avg: Optional[float] = None  # 당일 체온 델타 평균 (없으면 주간 평균으로 표시)
 
 
 class TrendData(BaseModel):
@@ -211,7 +215,7 @@ class AiCommentItem(BaseModel):
     """AI 분석 팁 단건. 프론트 카드 1개에 대응."""
     model_config = ConfigDict(extra='ignore')
 
-    type: str       # "caution" | "good"
+    type: Literal["caution", "good"]
     icon: str       # 이모지
     title: str
     text: str

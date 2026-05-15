@@ -106,8 +106,8 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
   // daily: 백엔드 응답 ({ day, sleep_h, restless_min } 또는 { date, sleep_min, restless_min })
   // daily_stats: 더미 데이터 형태 ({ day, sleep_h, restless_min })
   // 모두 지원
-  const dailyRows: Array<{ day: string; sleepMin: number; restlessMin: number }> = [];
-  const parseDailyItem = (d: any): { day: string; sleepMin: number; restlessMin: number } => {
+  const dailyRows: Array<{ day: string; sleepMin: number; restlessMin: number; breathAvg: number | null; bodyTempAvg: number | null }> = [];
+  const parseDailyItem = (d: any): { day: string; sleepMin: number; restlessMin: number; breathAvg: number | null; bodyTempAvg: number | null } => {
     const dayLabel = d.day || (d.date ? new Date(d.date).toLocaleDateString('ko-KR', { weekday: 'short' }).replace('요일', '') : '-');
     // sleep_h(시간) 또는 sleep_min(분) 둘 다 처리
     const sleepMin = d.sleep_min != null
@@ -116,7 +116,9 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
         ? Math.round(d.sleep_h * 60)
         : 0;
     const restlessMin = d.restless_min ?? 0;
-    return { day: dayLabel, sleepMin, restlessMin };
+    const breathAvg = d.breath_avg ?? null;
+    const bodyTempAvg = d.body_temp_avg ?? null;
+    return { day: dayLabel, sleepMin, restlessMin, breathAvg, bodyTempAvg };
   };
   if (daily && daily.length) {
     daily.forEach((d: any) => dailyRows.push(parseDailyItem(d)));
@@ -332,8 +334,8 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
               <table style={{ width: '100%', minWidth: 280, borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
                 <thead>
                   <tr>
-                    {['요일', '수면', '뒤척임', '호흡수'].map(h => (
-                      <th key={h} style={{ fontFamily: 'Inter', fontWeight: 500, color: 'var(--gray-mut)', textTransform: 'uppercase', letterSpacing: 1, fontSize: 10, padding: '12px 8px', borderBottom: '1px solid var(--black)' }}>{h}</th>
+                    {['요일', '수면', '뒤척임', '호흡수'].map((h, i) => (
+                      <th key={h} style={{ fontFamily: 'Inter', fontWeight: 500, color: 'var(--gray-mut)', textTransform: 'uppercase', letterSpacing: 1, fontSize: 10, padding: '12px 8px', borderBottom: '1px solid var(--black)', textAlign: i === 0 ? 'left' : 'right' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -341,9 +343,9 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
                   {dailyRows.map((row, i) => (
                     <tr key={i}>
                       <td style={{ padding: '12px 8px', borderBottom: '1px solid var(--gray-lt)', fontFamily: 'Noto Sans KR', fontWeight: 500, color: 'var(--gray-dark)' }}>{row.day}</td>
-                      <td style={{ padding: '12px 8px', borderBottom: '1px solid var(--gray-lt)', fontFamily: 'Inter', fontWeight: 400 }}>{fmtMin(row.sleepMin)}</td>
-                      <td style={{ padding: '12px 8px', borderBottom: '1px solid var(--gray-lt)', fontFamily: 'Inter', fontWeight: 400 }}>{row.restlessMin}분</td>
-                      <td style={{ padding: '12px 8px', borderBottom: '1px solid var(--gray-lt)', fontFamily: 'Inter', fontWeight: 400 }}>{breath?.breath_avg ?? '-'}</td>
+                      <td style={{ padding: '12px 8px', borderBottom: '1px solid var(--gray-lt)', fontFamily: 'Inter', fontWeight: 400, textAlign: 'right' }}>{fmtMin(row.sleepMin)}</td>
+                      <td style={{ padding: '12px 8px', borderBottom: '1px solid var(--gray-lt)', fontFamily: 'Inter', fontWeight: 400, textAlign: 'right' }}>{row.restlessMin}분</td>
+                      <td style={{ padding: '12px 8px', borderBottom: '1px solid var(--gray-lt)', fontFamily: 'Inter', fontWeight: 400, textAlign: 'right' }}>{row.breathAvg ?? breath?.breath_avg ?? '-'}<span style={{ fontSize: 9, color: 'var(--gray-mut)', marginLeft: 2 }}>rpm</span></td>
                     </tr>
                   ))}
                 </tbody>
