@@ -189,7 +189,11 @@ async def generate_insight(ctx: dict) -> dict:
         logger.warning("[Gemini] JSON 파싱 실패 — 재호출: %s", raw[:200])
         fix_prompt = prompt + "\n\n[주의] 반드시 유효한 JSON만 출력하라. 마크다운 코드 블록 없이 순수 JSON."
         raw = await _call_gemini(fix_prompt)
-        data = json.loads(raw)
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            logger.error("[Gemini] 재호출 후에도 JSON 파싱 실패 — 원본: %s", raw[:200])
+            raise
 
     # 필드 검증
     missing = _validate_json(data)
@@ -263,10 +267,6 @@ def _build_prompt(ctx: dict) -> str:
         indoor_temp_note = f" ✅ 권장 범위 ({temp_lo}~{temp_hi}°C) 내"
 
     # 취침 시간 판정 (knowledge 기준)
-    _BED_RANGE = {
-        4:  (18, 20), 8:  (18, 20),   # 4~8개월
-        23: (19, 20, 30),              # 9~23개월 → (19:00, 20:30)
-    }
     def _bedtime_note(daily: list) -> str:
         night_starts = [
             d["night_sessions"][0]["start"]

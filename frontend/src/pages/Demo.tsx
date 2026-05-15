@@ -2,6 +2,9 @@ import React, { useState, useRef } from 'react';
 import ReportView from '../components/ReportView';
 import { downloadPdf } from '../utils/pdfExport';
 
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
+const DEFAULT_API_KEY = (import.meta.env.VITE_API_KEY as string | undefined) ?? 'dev-local-key';
+
 const parseDuration = (s: string): number => {
   if (!s) return 0;
   const h = parseInt(s.match(/(\d+)h/)?.[1] ?? '0');
@@ -139,9 +142,9 @@ const Demo: React.FC = () => {
     setReportData(null);
     try {
       const req = buildRequest();
-      const response = await fetch('http://localhost:8000/api/v1/reports/generate', {
+      const response = await fetch(`${BASE_URL}/api/v1/reports/generate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': 'dev-local-key' },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': DEFAULT_API_KEY },
         body: JSON.stringify(req),
       });
       if (!response.ok) throw new Error(`서버 오류 ${response.status}: ${await response.text()}`);
@@ -162,7 +165,7 @@ const Demo: React.FC = () => {
     const last = dateKeys[dateKeys.length - 1];
     const [ly, lm, ld] = last.split('-').map(Number);
     const lastDate = new Date(ly, lm - 1, ld);
-    lastDate.setDate(ld - 6);
+    lastDate.setDate(lastDate.getDate() - 6);
     const weekStartStr = toDateStr(lastDate);
     setWeekStart(weekStartStr);
     setAgeMonths(calcAgeMonths(json.birth_date || ''));

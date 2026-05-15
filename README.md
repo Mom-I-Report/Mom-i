@@ -168,7 +168,9 @@ pytest --cov=app                               # 커버리지
 
 ---
 
-## 환경변수 (.env)
+## 환경변수
+
+### 백엔드 (`.env`)
 
 | 변수명 | 필수 | 설명 |
 |--------|------|------|
@@ -183,6 +185,16 @@ pytest --cov=app                               # 커버리지
 
 > `JWT_SECRET`은 맘아이 메인 서버 것과 **완전히 동일**해야 한다. 다르면 앱 로그인 후 리포트 조회 시 401 반환.  
 > 도커 실행 시 `DATABASE_URL`은 docker-compose가 컨테이너 내부 주소로 자동 덮어씀.
+
+### 프론트엔드 (`frontend/.env.local`)
+
+| 변수명 | 필수 | 설명 |
+|--------|------|------|
+| `VITE_API_BASE_URL` | ✅ | 백엔드 주소 (기본: `http://localhost:8000`) |
+| `VITE_API_KEY` | — | Admin/Demo 페이지 기본 API Key (미설정 시 Admin UI에서 직접 입력) |
+
+> `frontend/.env.local`은 `.gitignore` 대상. 팀원 각자 생성 필요.  
+> ngrok 등 외부 터널 사용 시 `VITE_API_BASE_URL=https://...ngrok-free.app` 으로 설정.
 
 ---
 

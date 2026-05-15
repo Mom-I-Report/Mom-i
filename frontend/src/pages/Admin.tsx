@@ -2,8 +2,10 @@ import React, { useState, useRef } from 'react';
 import ReportView from '../components/ReportView';
 import { downloadPdf } from '../utils/pdfExport';
 
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
+
 const Admin: React.FC = () => {
-  const [apiKey, setApiKey] = useState('dev-local-key');
+  const [apiKey, setApiKey] = useState((import.meta.env.VITE_API_KEY as string | undefined) ?? '');
   const [devices, setDevices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -19,7 +21,7 @@ const Admin: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('http://localhost:8000/api/v1/admin/devices', {
+      const res = await fetch(`${BASE_URL}/api/v1/admin/devices`, {
         headers: { 'X-API-Key': apiKey },
       });
       if (res.status === 403) throw new Error('API Key가 올바르지 않습니다.');
@@ -37,7 +39,7 @@ const Admin: React.FC = () => {
     setReports([]);
     setActiveTab(0);
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/admin/devices/${encodeURIComponent(serNo)}/reports`, {
+      const res = await fetch(`${BASE_URL}/api/v1/admin/devices/${encodeURIComponent(serNo)}/reports`, {
         headers: { 'X-API-Key': apiKey },
       });
       if (!res.ok) throw new Error(`리포트 조회 오류 ${res.status}`);
