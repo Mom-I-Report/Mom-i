@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
-import ReportView from '../components/ReportView';
-import { downloadPdf } from '../utils/pdfExport';
+import React, { useState, useRef, useMemo } from 'react';
+import ReportSplitLayout from '../components/ReportSplitLayout';
+import { downloadPdf } from '../utils/downloadPdf';
+import { enrichSleepReportData, buildDateRange } from '../utils/sleepReportData';
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
 
@@ -63,6 +64,12 @@ const Admin: React.FC = () => {
   };
 
   const formatDate = (s: string | null) => (s ? s.slice(0, 10) : '-');
+
+  const activeReport = reports[activeTab];
+  const displayReportData = useMemo(
+    () => enrichSleepReportData(activeReport?.report_json),
+    [activeReport],
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-color)' }}>
@@ -168,23 +175,20 @@ const Admin: React.FC = () => {
                   </button>
                 </div>
               </div>
-              <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--gray-lt)' }}>
-                {reports[activeTab] && (
-                  <ReportView
-                    data={reports[activeTab].report_json}
-                    hideSideAds={true}
-                    mode={viewMode === 'pc' ? 'split' : 'default'}
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', background: 'var(--report-bg)', borderRadius: '16px', padding: viewMode === 'mobile' ? '8px 6px 24px' : '16px' }}>
+                {activeReport && Object.keys(displayReportData).length > 0 && (
+                  <ReportSplitLayout
+                    viewMode={viewMode}
+                    captureRef={captureRef}
+                    apiReportData={activeReport.report_json}
+                    sleepReportData={displayReportData}
+                    childName={selectedDevice ?? '아기'}
+                    dateRange={buildDateRange(activeReport.report_json)}
                   />
                 )}
               </div>
             </div>
           )}
-        </div>
-      </div>
-      {/* PDF 캡처용 숨김 영역 */}
-      <div style={{ position: 'fixed', left: '-9999px', top: 0, width: '1100px', background: '#fff', overflow: 'visible', pointerEvents: 'none' }}>
-        <div ref={captureRef}>
-          {reports[activeTab] && <ReportView data={reports[activeTab].report_json} mode="split" hideSideAds={true} />}
         </div>
       </div>
     </div>

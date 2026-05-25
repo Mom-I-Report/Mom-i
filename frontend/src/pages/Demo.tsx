@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
-import ReportView from '../components/ReportView';
-import { downloadPdf } from '../utils/pdfExport';
+import React, { useState, useRef, useMemo } from 'react';
+import ReportSplitLayout from '../components/ReportSplitLayout';
+import { downloadPdf } from '../utils/downloadPdf';
+import { enrichSleepReportData, buildDateRange, isEmtakeReportData } from '../utils/sleepReportData';
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
 const DEFAULT_API_KEY = (import.meta.env.VITE_API_KEY as string | undefined) ?? 'dev-local-key';
@@ -52,6 +53,7 @@ const MOCK_SLEEP: SleepEntry[] = [
 
 const Demo: React.FC = () => {
   const [reportData, setReportData] = useState<any>(null);
+  const [rawJsonData, setRawJsonData] = useState<Record<string, unknown> | null>(null);
   const [reportMeta, setReportMeta] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -80,12 +82,29 @@ const Demo: React.FC = () => {
     cryCount: 4, leaveCount: 1,
   });
 
+  const displayReportData = useMemo(
+    () => enrichSleepReportData(rawJsonData ?? reportData, { weekStart, sleepDays: sleepData }),
+    [reportData, rawJsonData, weekStart, sleepData],
+  );
+
+  const sleepReportPayload = useMemo(
+    () => (rawJsonData ?? (isEmtakeReportData(reportData ?? {}) ? reportData : displayReportData)) as Record<string, unknown>,
+    [rawJsonData, reportData, displayReportData],
+  );
+
+  const hasSleepReport = Object.keys(sleepReportPayload).some(k => /^\d{4}-\d{2}-\d{2}$/.test(k));
+
+  const sleepChildName = reportMeta?.name ?? babyName;
+  const sleepDateRange = buildDateRange(rawJsonData ?? reportData, reportMeta);
+  const apiReportForGuidelines =
+    reportData && !isEmtakeReportData(reportData) ? reportData : null;
+
   const handleDownloadPdf = async () => {
     const el = captureRef.current;
     if (!el) return;
     setPdfLoading(true);
     try {
-      const label = reportData?.week_label?.replace(/\s/g, '_') ?? 'report';
+      const label = (reportData?.week_label ?? `${babyName}_${weekStart}`).replace(/\s/g, '_');
       await downloadPdf(el, label);
     } finally {
       setPdfLoading(false);
@@ -140,6 +159,7 @@ const Demo: React.FC = () => {
     setLoading(true);
     setError('');
     setReportData(null);
+    setRawJsonData(null);
     try {
       const req = buildRequest();
       const response = await fetch(`${BASE_URL}/api/v1/reports/generate`, {
@@ -161,6 +181,7 @@ const Demo: React.FC = () => {
   const applyJsonData = (json: any) => {
     const dateKeys = Object.keys(json).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort();
     if (dateKeys.length === 0) { setError('날짜 데이터를 찾을 수 없습니다.'); return; }
+    setRawJsonData(json);
 
     const last = dateKeys[dateKeys.length - 1];
     const [ly, lm, ld] = last.split('-').map(Number);
@@ -239,6 +260,15 @@ const Demo: React.FC = () => {
       leaveCount: 0,
     });
     setError('');
+
+    const ws = new Date(wy, wm - 1, wd);
+    const we = new Date(wy, wm - 1, wd + 6);
+    setReportData(json);
+    setReportMeta({
+      name: (json.name as string) || babyName,
+      weekStart: `${ws.getFullYear()}년 ${ws.getMonth() + 1}월 ${ws.getDate()}일`,
+      weekEnd: `${we.getDate()}일`,
+    });
   };
 
   const handleLoadJson = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -403,25 +433,31 @@ const Demo: React.FC = () => {
           )}
         </div>
 
-        {/* 오른쪽 리포트 영역 */}
-        <div className="print-area" style={{ flex: 1, overflowY: 'auto', background: '#E5E5EA', borderRadius: '16px', padding: '24px' }}>
+        {/* 오른쪽 리포트 영역 — PC: 좌 데이터(SleepReport) + 우 가이드라인(ReportView) */}
+        <div className="print-area" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', background: 'var(--report-bg)', borderRadius: '16px', padding: viewMode === 'mobile' ? '8px 6px 24px' : '16px' }}>
           {loading ? (
             <div style={{ height: '100%', minHeight: '400px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px' }}>
               <div style={{
                 width: '48px', height: '48px', borderRadius: '50%',
-                border: '4px solid var(--gray-lt)',
+                border: '4px solid rgba(255,255,255,0.2)',
                 borderTopColor: 'var(--accent-1)',
                 animation: 'spin 0.9s linear infinite',
               }} />
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--black)', marginBottom: '6px' }}>Gemini 분석 중</div>
+                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--charcoal)', marginBottom: '6px' }}>Gemini 분석 중</div>
                 <div style={{ fontSize: '12px', color: 'var(--gray-mut)' }}>보통 10~20초 정도 소요됩니다</div>
               </div>
             </div>
-          ) : reportData ? (
-            viewMode === 'pc'
-              ? <ReportView data={reportData} meta={reportMeta} hideSideAds={true} mode="split" />
-              : <ReportView data={reportData} meta={reportMeta} hideSideAds={true} />
+          ) : reportData && hasSleepReport ? (
+            <ReportSplitLayout
+              viewMode={viewMode}
+              captureRef={captureRef}
+              apiReportData={apiReportForGuidelines}
+              meta={reportMeta}
+              sleepReportData={sleepReportPayload}
+              childName={sleepChildName}
+              dateRange={sleepDateRange}
+            />
           ) : (
             <div style={{ height: '100%', minHeight: '400px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', color: 'var(--gray-mut)' }}>
               <div style={{ fontSize: '32px' }}>🌙</div>
@@ -432,13 +468,6 @@ const Demo: React.FC = () => {
               </div>
             </div>
           )}
-        </div>
-      </div>
-
-      {/* PDF 캡처용 숨김 영역 */}
-      <div style={{ position: 'fixed', left: '-9999px', top: 0, width: '1100px', background: '#fff', overflow: 'visible', pointerEvents: 'none' }}>
-        <div ref={captureRef}>
-          {reportData && <ReportView data={reportData} meta={reportMeta} mode="split" hideSideAds={true} />}
         </div>
       </div>
     </div>

@@ -24,6 +24,10 @@
   --accent-1-lt: #E5EFEB;
   --accent-2: #A26038; /* Muted Bronze/Terracotta */
   --accent-2-lt: #F6EFEA;
+
+  /* 수면 리포트 분할 레이아웃 */
+  --report-bg: #F3F0E9;
+  --report-panel-border: rgba(26, 43, 60, 0.12);
 }
 
 body {
@@ -31,6 +35,77 @@ body {
   background: var(--gray-lt);
   color: var(--black);
   min-height: 100vh;
+}
+
+.report-split-shell {
+  background: var(--report-bg);
+  border-radius: 12px;
+  width: 100%;
+}
+
+.report-split-shell--pc {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: stretch;
+  min-height: min(82vh, 880px);
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.report-panel {
+  background: var(--report-bg);
+  border: 1px solid var(--report-panel-border);
+  border-radius: 10px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.report-panel-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.report-panel--data .report-panel-scroll {
+  overflow-x: visible;
+}
+
+.report-split-shell--mobile {
+  width: 100%;
+  max-width: min(390px, 100%);
+  margin: 0 auto;
+  padding: 6px 4px;
+  box-sizing: border-box;
+}
+
+.report-mobile-section {
+  border: 1px solid var(--report-panel-border);
+  border-radius: 10px;
+  overflow: visible;
+  background: var(--report-bg);
+}
+
+.report-mobile-section + .report-mobile-section {
+  margin-top: 10px;
+}
+
+/* 모바일: 내용 잘림 방지 — 스크롤은 상위 .print-area에서 처리 */
+.report-mobile-inner {
+  padding: 8px 6px 16px;
+  overflow: visible;
+}
+
+.report-split-shell--mobile {
+  overflow: visible;
+  padding-bottom: 20px;
 }
 
 /* Base Utility Classes based on the old HTML styles */

@@ -6,8 +6,9 @@ import { chartColors } from './charts/ChartSetup';
 
 interface ReportViewProps {
   data: any;
-  mode?: 'default' | 'split';
+  mode?: 'default' | 'split' | 'guidelines';
   hideSideAds?: boolean;
+  compact?: boolean;
   contentMaxWidth?: number;
   meta?: {
     name?: string;
@@ -27,6 +28,89 @@ function fmtMin(m: number) {
 function md2html(str: string) {
   return (str || '').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 }
+
+/* ─── 가이드라인 패널 색상·카드 (SleepReport s.card와 동일 치수) ─── */
+const C = {
+  greenBg:     "#EAF3DE",
+  greenBorder: "#97C459",
+  amberBg:     "#FAEEDA",
+  amberBorder: "#EF9F27",
+  devBg:       "#EFF4FB",
+  devBorder:   "#A8C4E0",
+  greenDark:   "#27500A",
+  amberDark:   "#854F0B",
+  devTitle:    "#1A2B3C",
+  body:        "#3B6D11",
+  bodyWarn:    "#633806",
+  bodyDev:     "#4A5F7A",
+};
+
+const s: Record<string, React.CSSProperties> = {
+  card: {
+    borderRadius: 12,
+    padding: "1rem 1.25rem",
+    marginBottom: 10,
+  },
+  cardNormal: {
+    background: C.greenBg,
+    border: `0.5px solid ${C.greenBorder}`,
+  },
+  cardWarn: {
+    background: C.amberBg,
+    border: `0.5px solid ${C.amberBorder}`,
+  },
+  cardDev: {
+    background: C.devBg,
+    border: `0.5px solid ${C.devBorder}`,
+  },
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: 500,
+    color: C.devTitle,
+    marginBottom: 8,
+    lineHeight: 1.4,
+  },
+  cardText: {
+    fontSize: 13,
+    lineHeight: 1.65,
+    fontWeight: 300,
+  },
+  cardTextNormal: { color: C.body },
+  cardTextWarn:   { color: C.bodyWarn },
+  cardTextDev:    { color: C.bodyDev },
+  tipLabel: {
+    fontFamily: "Inter, sans-serif",
+    fontSize: 10,
+    fontWeight: 600,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  tipLabelNormal: { color: C.greenDark },
+  tipLabelWarn:   { color: C.amberDark },
+  stepRow: {
+    display: "flex",
+    gap: 12,
+    paddingBottom: 12,
+    marginBottom: 12,
+    borderBottom: `0.5px solid ${C.greenBorder}`,
+  },
+  stepRowLast: {
+    display: "flex",
+    gap: 12,
+    paddingBottom: 0,
+    marginBottom: 0,
+    borderBottom: "none",
+  },
+  stepNum: {
+    fontFamily: "Inter, sans-serif",
+    fontWeight: 300,
+    fontSize: 14,
+    color: C.greenDark,
+    width: 22,
+    flexShrink: 0,
+  },
+};
 
 // 덜덜 떨리거나 밀리는 현상(Jitter & Lag)을 완벽히 잡은 스크롤 추적 래퍼
 const StickyWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -84,7 +168,7 @@ const StickyWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   );
 };
 
-const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', hideSideAds = false, contentMaxWidth = 430 }) => {
+const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', hideSideAds = false, compact = false, contentMaxWidth = 430 }) => {
   const splitRef = React.useRef<HTMLDivElement>(null);
   const [splitCols, setSplitCols] = React.useState(2);
 
@@ -219,6 +303,7 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
   const S: Record<string, React.CSSProperties> = {
     container: { maxWidth: contentMaxWidth, width: '100%', margin: '0 auto', background: 'var(--bg-color)', display: 'flex', flexDirection: 'column' },
     pageBox: { padding: '32px 24px', display: 'flex', flexDirection: 'column', gap: 24 },
+    pageBoxCompact: { padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 14 },
     header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: 20, borderBottom: '1px solid var(--black)' },
     brandName: { fontFamily: 'Inter, sans-serif', fontSize: 18, fontWeight: 500, color: 'var(--black)', letterSpacing: 2, textTransform: 'uppercase' as const, lineHeight: 1.2 },
     brandSub: { fontSize: 9, color: 'var(--gray-mut)', marginTop: 4, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase' as const, letterSpacing: 1 },
@@ -252,21 +337,20 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
   const renderTipBox = (tip: any, idx: number) => {
     if (typeof tip === 'string') {
       return (
-        <div key={idx} style={{ padding: '16px 20px', borderRadius: 8, marginBottom: 12, background: 'var(--surface)', borderLeft: '2px solid var(--gray-lt)' }}>
-          <div style={{ fontSize: 12, color: 'var(--gray-dark)', lineHeight: 1.6, fontWeight: 300 }}>{tip}</div>
+        <div key={idx} style={{ ...s.card, ...s.cardNormal }}>
+          <div style={{ ...s.cardText, ...s.cardTextNormal, fontSize: 12 }}>{tip}</div>
         </div>
       );
     }
     const isGood = tip.type === 'good';
+    const variant = isGood ? s.cardNormal : s.cardWarn;
+    const textStyle = isGood ? s.cardTextNormal : s.cardTextWarn;
+    const labelStyle = isGood ? s.tipLabelNormal : s.tipLabelWarn;
     return (
-      <div key={idx} style={{
-        padding: '16px 20px', borderRadius: 8, marginBottom: 12,
-        background: isGood ? 'var(--accent-1-lt)' : 'var(--accent-2-lt)',
-        borderLeft: `2px solid ${isGood ? 'var(--accent-1)' : 'var(--accent-2)'}`,
-      }}>
-        {tip.label && <div style={{ fontFamily: 'Inter', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 1, color: isGood ? 'var(--accent-1)' : 'var(--accent-2)', marginBottom: 6 }}>{tip.label}</div>}
-        {tip.title && <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--black)', marginBottom: 6 }}>{tip.title}</div>}
-        <div style={{ fontSize: 12, color: 'var(--gray-dark)', lineHeight: 1.6, fontWeight: 300 }} dangerouslySetInnerHTML={{ __html: md2html(tip.text || '') }} />
+      <div key={idx} style={{ ...s.card, ...variant }}>
+        {tip.label && <div style={{ ...s.tipLabel, ...labelStyle }}>{tip.label}</div>}
+        {tip.title && <div style={s.cardTitle}>{tip.title}</div>}
+        <div style={{ ...s.cardText, ...textStyle, fontSize: 12 }} dangerouslySetInnerHTML={{ __html: md2html(tip.text || '') }} />
       </div>
     );
   };
@@ -382,21 +466,29 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
     />
   );
 
+  const pageBoxStyle = compact ? S.pageBoxCompact : S.pageBox;
+
   const pageTwoContent = (
-    <div style={S.pageBox}>
+    <div style={pageBoxStyle}>
         {/* AI Solution */}
         {sleep_guide && (
           <div>
             <div style={S.secTitle}>핵심 솔루션</div>
-            <div style={S.aiSolTitle}>{sleep_guide.title}</div>
-            <div style={S.aiSolReason} dangerouslySetInnerHTML={{ __html: md2html(sleep_guide.reason || '') }} />
-            <div style={S.aiSteps}>
-              {(sleep_guide.steps || []).map((step: string, i: number) => (
-                <div key={i} style={{ ...S.aiStep, ...(i === (sleep_guide.steps.length - 1) ? { borderBottom: 'none', paddingBottom: 0 } : {}) }}>
-                  <div style={S.stepNum}>0{i + 1}</div>
-                  <div style={S.stepText} dangerouslySetInnerHTML={{ __html: md2html(step) }} />
-                </div>
-              ))}
+            <div style={{ ...s.card, ...s.cardNormal }}>
+              <div style={s.cardTitle}>{sleep_guide.title}</div>
+              <div
+                style={{ ...s.cardText, ...s.cardTextNormal, marginBottom: (sleep_guide.steps?.length ?? 0) > 0 ? 12 : 0 }}
+                dangerouslySetInnerHTML={{ __html: md2html(sleep_guide.reason || '') }}
+              />
+              {(sleep_guide.steps || []).map((step: string, i: number) => {
+                const last = i === sleep_guide.steps.length - 1;
+                return (
+                  <div key={i} style={last ? s.stepRowLast : s.stepRow}>
+                    <div style={s.stepNum}>0{i + 1}</div>
+                    <div style={{ ...s.cardText, ...s.cardTextNormal, fontSize: 12 }} dangerouslySetInnerHTML={{ __html: md2html(step) }} />
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -415,18 +507,18 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
           {age_kick && (
             <div>
               <div style={S.secTitle}>발달 케어</div>
-              <div style={S.kickWrap}>
-                <div style={S.kickTitle}>{age_kick.title}</div>
-                <div style={S.kickText} dangerouslySetInnerHTML={{ __html: md2html(age_kick.text || '') }} />
+              <div style={{ ...s.card, ...s.cardDev }}>
+                <div style={s.cardTitle}>{age_kick.title}</div>
+                <div style={{ ...s.cardText, ...s.cardTextDev }} dangerouslySetInnerHTML={{ __html: md2html(age_kick.text || '') }} />
               </div>
             </div>
           )}
 
           {/* 부모 응원 메시지 */}
           {parent_message && (
-            <div style={{ padding: '16px 20px', background: 'var(--accent-1-lt)', borderRadius: 12, borderLeft: '4px solid var(--accent-1)' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-1)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>이번 주 응원 메시지</div>
-              <div style={{ fontSize: 13, color: 'var(--black)', lineHeight: 1.7 }}>{parent_message}</div>
+            <div style={{ ...s.card, ...s.cardNormal }}>
+              <div style={{ ...s.tipLabel, ...s.tipLabelNormal }}>이번 주 응원 메시지</div>
+              <div style={{ ...s.cardText, ...s.cardTextNormal }}>{parent_message}</div>
             </div>
           )}
 
@@ -441,6 +533,20 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
       {meta?.generated && <span>ISSUED: {meta.generated}</span>}
     </div>
   );
+
+  if (mode === 'guidelines') {
+    return (
+      <div style={{
+        ...S.container,
+        maxWidth: 'none',
+        width: '100%',
+        background: 'transparent',
+        margin: 0,
+      }}>
+        {pageTwoContent}
+      </div>
+    );
+  }
 
   if (mode === 'split') {
     return (
