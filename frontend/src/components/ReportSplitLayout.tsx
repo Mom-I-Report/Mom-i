@@ -1,6 +1,7 @@
 import type { RefObject, ReactNode } from 'react';
 import SleepReport from './SleepReport';
 import ReportView from './ReportView';
+import AdBanner from './AdBanner';
 import { isEmtakeReportData } from '../utils/sleepReportData';
 
 type ReportMeta = {
@@ -57,6 +58,16 @@ export default function ReportSplitLayout({
     </div>
   );
 
+  const adBanner = (
+    <AdBanner
+      tag="MOM-I"
+      title="맘아이 카메라로 수면을 기록하세요"
+      description="설치 한 번으로 호흡·체온·뒤척임을 자동 측정. 매주 AI 리포트로 아이 수면을 한눈에 확인하세요."
+      imageUrl="/ad-momi-main.png"
+      linkUrl="https://www.mom-i.com/"
+    />
+  );
+
   const panelInnerPc = (content: ReactNode, pad: string) => (
     <div className="report-panel-scroll" style={{ padding: pad }}>
       {content}
@@ -74,7 +85,13 @@ export default function ReportSplitLayout({
           {panelInnerPc(dataPanel, PANEL_PAD.pc)}
         </div>
         <div className="report-panel">
-          {panelInnerPc(guidelinesPanel, PANEL_PAD.pc)}
+          {panelInnerPc(
+            <>
+              {adBanner}
+              {guidelinesPanel}
+            </>,
+            PANEL_PAD.pc
+          )}
         </div>
       </div>
     );
@@ -86,9 +103,14 @@ export default function ReportSplitLayout({
         {panelInnerMobile(dataPanel)}
       </div>
       {isApiReport && (
-        <div className="report-mobile-section">
-          {panelInnerMobile(guidelinesPanel)}
-        </div>
+        <>
+          <div className="report-mobile-section">
+            {panelInnerMobile(adBanner)}
+          </div>
+          <div className="report-mobile-section">
+            {panelInnerMobile(guidelinesPanel)}
+          </div>
+        </>
       )}
     </div>
   );

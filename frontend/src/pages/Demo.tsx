@@ -38,17 +38,21 @@ type SleepEntry = {
   wakeup_count: number | null;
   device_status: string | null;
   sessions: any[] | null;
+  env_temp_max?: number | null;
+  env_db_max?: number | null;
+  env_humidity_avg?: number | null;
+  env_bright_avg?: number | null;
 };
 
-// 초기 목 데이터 — 3개월 아기(민우) 기준
+// 초기 목 데이터 — 8개월 아기(민우) 기준 / 수요일(i=2) 온도 25.3°C로 ⚠ 트리거 테스트
 const MOCK_SLEEP: SleepEntry[] = [
-  { sleep_min: 820, restless_min: 25, wakeup_count: null, device_status: null, sessions: null },
-  { sleep_min: 850, restless_min: 30, wakeup_count: null, device_status: null, sessions: null },
-  { sleep_min: 780, restless_min: 45, wakeup_count: null, device_status: null, sessions: null },
-  { sleep_min: 900, restless_min: 20, wakeup_count: null, device_status: null, sessions: null },
-  { sleep_min: 840, restless_min: 35, wakeup_count: null, device_status: null, sessions: null },
-  { sleep_min: 810, restless_min: 28, wakeup_count: null, device_status: null, sessions: null },
-  { sleep_min: 870, restless_min: 22, wakeup_count: null, device_status: null, sessions: null },
+  { sleep_min: 620, restless_min: 25, wakeup_count: 2, device_status: 'NORMAL', sessions: null, env_temp_max: 22.1, env_db_max: 48, env_humidity_avg: 52.0, env_bright_avg: 1.2 },
+  { sleep_min: 580, restless_min: 30, wakeup_count: 3, device_status: 'NORMAL', sessions: null, env_temp_max: 22.8, env_db_max: 51, env_humidity_avg: 53.0, env_bright_avg: 1.5 },
+  { sleep_min: 510, restless_min: 52, wakeup_count: 5, device_status: 'CAUTION', sessions: null, env_temp_max: 25.3, env_db_max: 49, env_humidity_avg: 54.0, env_bright_avg: 1.8 },
+  { sleep_min: 600, restless_min: 20, wakeup_count: 2, device_status: 'NORMAL', sessions: null, env_temp_max: 21.9, env_db_max: 47, env_humidity_avg: 51.0, env_bright_avg: 1.3 },
+  { sleep_min: 590, restless_min: 35, wakeup_count: 3, device_status: 'NORMAL', sessions: null, env_temp_max: 22.5, env_db_max: 50, env_humidity_avg: 52.5, env_bright_avg: 1.4 },
+  { sleep_min: 540, restless_min: 42, wakeup_count: 4, device_status: 'NORMAL', sessions: null, env_temp_max: 23.8, env_db_max: 55, env_humidity_avg: 50.0, env_bright_avg: 1.6 },
+  { sleep_min: 610, restless_min: 22, wakeup_count: 2, device_status: 'NORMAL', sessions: null, env_temp_max: 22.2, env_db_max: 48, env_humidity_avg: 53.0, env_bright_avg: 1.2 },
 ];
 
 const Demo: React.FC = () => {
@@ -64,7 +68,7 @@ const Demo: React.FC = () => {
 
   const [serNo, setSerNo] = useState('MT-00001');
   const [babyName, setBabyName] = useState('민우');
-  const [ageMonths, setAgeMonths] = useState(3);
+  const [ageMonths, setAgeMonths] = useState(8);
   const [weekStart, setWeekStart] = useState(getThisMonday());
   const [sleepData, setSleepData] = useState(MOCK_SLEEP.map(s => ({ ...s })));
 
@@ -120,6 +124,10 @@ const Demo: React.FC = () => {
       if (s.wakeup_count != null) entry.wakeup_count = s.wakeup_count;
       if (s.device_status) entry.device_status = s.device_status;
       if (s.sessions) entry.sessions = s.sessions;
+      if (s.env_temp_max != null) entry.env_temp_max = s.env_temp_max;
+      if (s.env_db_max != null) entry.env_db_max = s.env_db_max;
+      if (s.env_humidity_avg != null) entry.env_humidity_avg = s.env_humidity_avg;
+      if (s.env_bright_avg != null) entry.env_bright_avg = s.env_bright_avg;
       return entry;
     });
     const environment: any = { temp_avg: env.tempAvg, temp_max: env.tempMax, temp_min: env.tempMin, db_max: env.dbMax, db_avg: env.dbMax };

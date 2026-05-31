@@ -388,6 +388,11 @@ def _build_ai_context(
                      "duration_min": sess.duration_min, "wake_up": sess.wake_up}
                     for sess in (s.sessions or []) if not sess.is_nap
                 ],
+                # 일별 환경 데이터 (제공된 경우에만 포함)
+                "env_temp_max":     s.env_temp_max,
+                "env_db_max":       s.env_db_max,
+                "env_humidity_avg": s.env_humidity_avg,
+                "env_bright_avg":   s.env_bright_avg,
             }
             for s in req.sleep
         ],

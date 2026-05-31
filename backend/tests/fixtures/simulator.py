@@ -88,13 +88,21 @@ def make_dummy_week(
         day = week_start + timedelta(days=i)
         sleep_min = random.randint(480, 620)
         restless_min = random.randint(5, 40)
+        # 일별 환경 데이터: 약 15% 확률로 ⚠ 수준 온도 발생
+        env_temp = round(random.uniform(21.0, 23.5), 1)
+        if random.random() < 0.15:
+            env_temp = round(random.uniform(24.5, 26.5), 1)
         sleep_days.append({
-            "date":          day.isoformat(),
-            "sleep_min":     sleep_min,
-            "restless_min":  restless_min,
-            "wakeup_count":  random.randint(1, 6),
-            "device_status": random.choice(["NORMAL", "NORMAL", "NORMAL", "CAUTION"]),
-            "sessions":      _make_sessions(sleep_min, i),
+            "date":               day.isoformat(),
+            "sleep_min":          sleep_min,
+            "restless_min":       restless_min,
+            "wakeup_count":       random.randint(1, 6),
+            "device_status":      random.choice(["NORMAL", "NORMAL", "NORMAL", "CAUTION"]),
+            "sessions":           _make_sessions(sleep_min, i),
+            "env_temp_max":       env_temp,
+            "env_db_max":         random.randint(44, 68),
+            "env_humidity_avg":   round(random.uniform(44.0, 62.0), 1),
+            "env_bright_avg":     round(random.uniform(1.0, 10.0), 1),
         })
 
     # 실내 온도: 최저 < 평균 < 최고

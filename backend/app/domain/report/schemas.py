@@ -55,6 +55,11 @@ class SleepDay(BaseModel):
     wakeup_count: Optional[int] = None      # 총 뒤척임 횟수 (day_wakeup)
     device_status: Optional[str] = None     # 기기 판단 상태 (NORMAL / CAUTION 등)
     sessions: Optional[List[SleepSession]] = None  # 수면 세션 상세
+    # 일별 환경 데이터 (mom-i 서버 제공 시 포함 — 일별 수면-환경 상관관계 분석용)
+    env_temp_max: Optional[float] = None    # 당일 최고 실내 온도 (°C)
+    env_db_max: Optional[int] = None        # 당일 최고 소음 (dB)
+    env_humidity_avg: Optional[float] = None  # 당일 평균 습도 (%)
+    env_bright_avg: Optional[float] = None  # 당일 평균 조도 (lux)
 
 
 class EnvironmentData(BaseModel):

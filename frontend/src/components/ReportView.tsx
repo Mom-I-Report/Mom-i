@@ -31,18 +31,20 @@ function md2html(str: string) {
 
 /* ─── 가이드라인 패널 색상·카드 (SleepReport s.card와 동일 치수) ─── */
 const C = {
-  greenBg:     "#EAF3DE",
-  greenBorder: "#97C459",
-  amberBg:     "#FAEEDA",
-  amberBorder: "#EF9F27",
-  devBg:       "#EFF4FB",
-  devBorder:   "#A8C4E0",
-  greenDark:   "#27500A",
-  amberDark:   "#854F0B",
-  devTitle:    "#1A2B3C",
-  body:        "#3B6D11",
+  greenBg:     "#E8EDE4",
+  greenBorder: "#A8BBA0",
+  amberBg:     "#F0E8D8",
+  amberBorder: "#C4A882",
+  devBg:       "#EAE6DC",
+  devBorder:   "#C8C0B0",
+  greenDark:   "#2E4A35",
+  amberDark:   "#7A4F2A",
+  devTitle:    "#2A2420",
+  body:        "#3D5C44",
   bodyWarn:    "#633806",
-  bodyDev:     "#4A5F7A",
+  bodyDev:     "#4A5C50",
+  tipBg:       "#EAE6DC",
+  tipBorder:   "#C8C0B0",
 };
 
 const s: Record<string, React.CSSProperties> = {
@@ -60,8 +62,8 @@ const s: Record<string, React.CSSProperties> = {
     border: `0.5px solid ${C.amberBorder}`,
   },
   cardDev: {
-    background: C.devBg,
-    border: `0.5px solid ${C.devBorder}`,
+    background: "#FAF8F3",
+    border: "0.5px solid rgba(42,36,32,0.10)",
   },
   cardTitle: {
     fontSize: 14,
@@ -93,7 +95,7 @@ const s: Record<string, React.CSSProperties> = {
     gap: 12,
     paddingBottom: 12,
     marginBottom: 12,
-    borderBottom: `0.5px solid ${C.greenBorder}`,
+    borderBottom: "0.5px solid rgba(42,36,32,0.10)",
   },
   stepRowLast: {
     display: "flex",
@@ -474,7 +476,7 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
         {sleep_guide && (
           <div>
             <div style={S.secTitle}>핵심 솔루션</div>
-            <div style={{ ...s.card, ...s.cardNormal }}>
+            <div style={{ ...s.card, background: '#fff', border: '0.5px solid rgba(42,36,32,0.10)' }}>
               <div style={s.cardTitle}>{sleep_guide.title}</div>
               <div
                 style={{ ...s.cardText, ...s.cardTextNormal, marginBottom: (sleep_guide.steps?.length ?? 0) > 0 ? 12 : 0 }}
@@ -496,12 +498,31 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
         {/* Key Insights + Developmental Care */}
         <div style={S.gridWrap}>
           {/* Key Insights (tip boxes) */}
-          {aiCommentArr.length > 0 && typeof aiCommentArr[0] !== 'string' && (
-            <div>
-              <div style={S.secTitle}>핵심 인사이트</div>
-              {aiCommentArr.map((tip: any, i: number) => renderTipBox(tip, i))}
-            </div>
-          )}
+          {aiCommentArr.length > 0 && typeof aiCommentArr[0] !== 'string' && (() => {
+            const cautionItems = aiCommentArr.filter((t: any) => t.type !== 'good');
+            const goodItems    = aiCommentArr.filter((t: any) => t.type === 'good');
+            return (
+              <div>
+                <div style={S.secTitle}>핵심 인사이트</div>
+                {cautionItems.length > 0 && (
+                  <div style={{ marginBottom: goodItems.length > 0 ? 16 : 0 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.amberDark, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>
+                      ⚠ 주의할 점
+                    </div>
+                    {cautionItems.map((tip: any, i: number) => renderTipBox(tip, i))}
+                  </div>
+                )}
+                {goodItems.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.greenDark, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>
+                      ✓ 잘 됐어요
+                    </div>
+                    {goodItems.map((tip: any, i: number) => renderTipBox(tip, i))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Developmental Care */}
           {age_kick && (
@@ -554,11 +575,11 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${splitCols}, minmax(0, 1fr))`, gap: 20, alignItems: 'start' }}>
           <div style={{ ...S.container, maxWidth: 'none', border: '1px solid var(--gray-lt)', borderRadius: 12, overflow: 'hidden' }}>
             {pageOne}
-            <div style={{ padding: '0 24px 24px' }}>
-              {middleAdBanner}
-            </div>
           </div>
           <div style={{ ...S.container, maxWidth: 'none', border: '1px solid var(--gray-lt)', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ padding: '24px 24px 0' }}>
+              {middleAdBanner}
+            </div>
             {pageTwoContent}
           </div>
         </div>

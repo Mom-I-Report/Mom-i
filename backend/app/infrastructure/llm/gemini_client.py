@@ -66,7 +66,7 @@ _AGE_SLEEP_POLICY: list[tuple[int, str | None]] = [
     (2,   None),                                  # 수면 교육 금지
     (4,   "쉬닥법, 안눈법"),
     (6,   "쉬닥법, 퍼버법(초기), 픽업앤다운"),
-    (9,   "퍼버법, 쉬닥법, 픽업앤다운"),
+    (9,   "퍼버법, 쉬닥법, 픽업앤다운, 의자법"),
     (12,  "퍼버법 중심, 루틴 강화"),
     (999, "퍼버법, 의자법, 루틴 일관성"),
 ]
@@ -296,12 +296,16 @@ def _build_prompt(ctx: dict) -> str:
         return note
     bedtime_note = _bedtime_note(ctx.get("daily", []))
 
-    # 일별 수면 라인 생성
+    # 일별 수면 라인 생성 (환경 데이터 포함 시 상관관계 분석용 표기 추가)
     day_lines_list = []
+    has_daily_env = any(
+        d.get("env_temp_max") is not None or d.get("env_db_max") is not None
+        for d in ctx.get("daily", [])
+    )
     for d in ctx.get("daily", []):
         line = f"  {d['day']}: 수면 {d['sleep_h']}h / 뒤척임 {d['restless_min']}분"
         if d.get("wakeup_count") is not None:
-            line += f" / 총뒤척임 {d['wakeup_count']}회"
+            line += f" / 각성 {d['wakeup_count']}회"
         if d.get("nap_sessions", 0) > 0:
             line += f" / 낮잠 {d['nap_sessions']}회"
         if d.get("night_sessions"):
@@ -311,6 +315,21 @@ def _build_prompt(ctx: dict) -> str:
                 line += f" / 밤잠 {ns0['start']}~{ns0['end']}({ns0['duration_min']}분)"
         if d.get("device_status") and d["device_status"] != "NORMAL":
             line += f" [{d['device_status']}]"
+        # 일별 환경 데이터 (있을 경우에만 표기)
+        env_parts = []
+        if d.get("env_temp_max") is not None:
+            temp_flag = " ⚠" if d["env_temp_max"] > 22.0 else ""
+            env_parts.append(f"온도최고 {d['env_temp_max']}°C{temp_flag}")
+        if d.get("env_db_max") is not None:
+            db_flag = " ⚠" if d["env_db_max"] > 50 else ""
+            env_parts.append(f"소음최고 {d['env_db_max']}dB{db_flag}")
+        if d.get("env_humidity_avg") is not None:
+            hum_flag = " ⚠건조" if d["env_humidity_avg"] < 40 else (" ⚠과습" if d["env_humidity_avg"] > 60 else "")
+            env_parts.append(f"습도 {d['env_humidity_avg']}%{hum_flag}")
+        if d.get("env_bright_avg") is not None and d["env_bright_avg"] > 5:
+            env_parts.append(f"조도 {d['env_bright_avg']}lux ⚠")
+        if env_parts:
+            line += f"  [환경: {' / '.join(env_parts)}]"
         day_lines_list.append(line)
     day_lines = "\n".join(day_lines_list)
 
