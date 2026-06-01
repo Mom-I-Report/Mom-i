@@ -415,15 +415,15 @@ async def build_generate_request_from_sensor(
     ref_date: date_cls,
     ser_no: str,
     user_type: str = "LLMREPORT",
-) -> dict:
+) -> tuple[dict, list[str]]:
     """
     CMD=SensorData로 7일치를 날짜별 병렬 호출해
-    GenerateReportRequest(**result)로 바로 사용 가능한 dict를 반환한다.
+    (GenerateReportRequest dict, shared_report_list) 튜플을 반환한다.
 
     ref_date: 마지막 날(포함). 7일치를 ref_date-6 ~ ref_date 순으로 수집.
-    Breath/Temp/IndoorTemp/dB는 7일 평균으로 집계.
-    월간 데이터는 마지막 날 응답에서 추출.
-    Events는 미지원이므로 0 처리.
+    shared_report_list: SensorData 응답에 포함된 알림 수신자 연락처 목록.
+                        relay가 항상 최신 목록을 제공하므로 별도 저장 불필요.
+    Events는 relay 미지원이므로 0 처리.
     """
     import asyncio
     from datetime import timedelta
@@ -431,11 +431,14 @@ async def build_generate_request_from_sensor(
     dates = [ref_date - timedelta(days=i) for i in range(6, -1, -1)]
 
     raws = await asyncio.gather(*[
-        _fetch_raw(account, uid, "SensorData", date_str=str(d), user_type=user_type)
+        _fetch_raw(account, uid, "ALL", date_str=str(d), user_type=user_type)
         for d in dates
     ])
 
     days = [parse_sensor_data_day(raw, d) for raw, d in zip(raws, dates)]
+
+    # shared_report_list는 어느 날 응답에나 동일하게 포함 — 마지막 날 기준으로 추출
+    shared_report_list: list[str] = raws[-1].get("shared_report_list", [])
 
     # 7일치 수치 집계
     def _avg_int(key: str) -> int:
@@ -501,7 +504,7 @@ async def build_generate_request_from_sensor(
         monthly["week_sleep_h"]    = last["week_sleep_h"]
         monthly["week_restless_h"] = last.get("week_restless_h")
 
-    return {
+    req_dict = {
         "ser_no":          ser_no,
         "baby_age_months": last["baby_age_months"],
         "week_start":      str(dates[0]),
@@ -521,3 +524,4 @@ async def build_generate_request_from_sensor(
         "monthly":     monthly,
         "events":      {"cry_count": 0, "leave_count": 0},
     }
+    return req_dict, shared_report_list

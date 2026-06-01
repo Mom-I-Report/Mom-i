@@ -10,6 +10,8 @@ admin_api.py — 관리자 대시보드 API
   X-API-Key 헤더 (ADMIN_API_KEY) — 내부 관리용 전용
   앱 사용자는 접근 불가.
 """
+from datetime import date, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -126,3 +128,53 @@ async def emtake_sleep(
         return {"account": account, "uid": uid, "parsed": parsed}
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"EMTAKE SleepData 호출 실패: {e}")
+
+
+@router.post(
+    "/emtake/generate",
+    summary="[테스트] relay 데이터로 리포트 직접 생성",
+    dependencies=[Depends(verify_api_key)],
+)
+async def emtake_generate(
+    account: str = Query(..., example="test1@test.com"),
+    uid:     str = Query(..., example="TEST1"),
+    ser_no:  str = Query(..., example="TEST-SER-001"),
+    db: Session = Depends(get_db),
+):
+    """
+    EMTAKE relay에서 7일치 데이터를 수집해 리포트를 생성합니다.
+    스케줄러 흐름 전체를 수동으로 트리거하는 테스트용 엔드포인트.
+    ref_date = 어제 (오늘 기준 -1일).
+    """
+    from app.application.report import report_service
+    from app.domain.report.schemas import GenerateReportRequest
+
+    ref_date = date.today() - timedelta(days=1)
+    try:
+        req_dict, shared_report_list = await emtake_client.build_generate_request_from_sensor(
+            account, uid, ref_date, ser_no
+        )
+        req    = GenerateReportRequest(**req_dict)
+        report = await report_service.generate_report(db, req)
+        from app.infrastructure.notification.sender import notify_report_ready
+        await notify_report_ready(
+            shared_report_list,
+            ser_no,
+            report.week_label,
+            report.summary.avg_sleep_h,
+            report.summary.avg_restless_min,
+            report=report,
+        )
+        return {
+            "status":             "ok",
+            "week_start":         str(report.week_start),
+            "week_label":         report.week_label,
+            "avg_sleep_h":        report.summary.avg_sleep_h,
+            "avg_restless_min":   report.summary.avg_restless_min,
+            "ai_comment_count":   len(report.ai_comment),
+            "sleep_guide":        report.sleep_guide.method_name if report.sleep_guide else None,
+            "shared_report_list": shared_report_list,
+            "notifications_sent": len([c for c in shared_report_list if "@" in c]),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))

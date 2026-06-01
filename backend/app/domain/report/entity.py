@@ -15,10 +15,11 @@ entity.py — SQLAlchemy ORM 모델 정의
   SQLAlchemy create_all()은 테이블을 새로 만들 뿐 ALTER TABLE은 수행하지 않음.
   컬럼 추가 시 Alembic 마이그레이션으로 적용해야 함.
 """
-from sqlalchemy import Column, Integer, String, Date, Text, TIMESTAMP, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Date, Text, TIMESTAMP, UniqueConstraint, Boolean
 from sqlalchemy.types import JSON
 from sqlalchemy.sql import func
 from app.infrastructure.database.session import Base
+
 
 
 class WeeklyData(Base):
@@ -89,3 +90,47 @@ class GeneratedReport(Base):
     __table_args__ = (
         UniqueConstraint("ser_no", "week_start", name="uq_report_ser_week"),
     )
+
+
+class ShareTarget(Base):
+    """
+    알림 수신자 목록 테이블.
+
+    디바이스(ser_no)별로 SMS/이메일 알림을 받을 수신자를 등록한다.
+    동일 디바이스에 같은 연락처 중복 등록 방지 (ser_no + contact UNIQUE).
+    디바이스당 최대 5명 제한은 API 레이어에서 처리.
+    """
+    __tablename__ = "Share_Targets"
+
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    ser_no     = Column(String(50), nullable=False)
+    name       = Column(String(50), nullable=False)
+    contact    = Column(String(100), nullable=False)          # 전화번호 or 이메일
+    type       = Column(String(10), nullable=False)           # "sms" | "email"
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("ser_no", "contact", name="uq_share_ser_contact"),
+    )
+
+
+class Subscription(Base):
+    """
+    리포트 서비스 구독자 테이블.
+
+    맘아이 서버가 구독 등록 시 ser_no + account + shared_report_list를 등록한다.
+    스케줄러가 매주 이 목록을 순회해 EMTAKE relay에서 데이터를 수집하고 리포트를 자동 생성한다.
+
+    account            : EMTAKE relay API 호출 시 필요한 맘아이 계정 이메일.
+    shared_report_list : 리포트 발송 대상 연락처 목록 (전화번호 or 이메일 문자열 배열).
+                         예) ["010-1234-5678", "grandma@gmail.com"]
+                         전화번호 → SMS, 이메일 → Email 자동 구분.
+    """
+    __tablename__ = "Subscriptions"
+
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    ser_no     = Column(String(50), nullable=False, unique=True)
+    account    = Column(String(200), nullable=False)
+    user_type  = Column(String(20), nullable=False, default="LLMREPORT")
+    is_active  = Column(Boolean, nullable=False, default=True)
+    created_at = Column(TIMESTAMP, server_default=func.now())

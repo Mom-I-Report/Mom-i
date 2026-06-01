@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     # 맘아이 서버 → 리포트 서버 호출 시 사용하는 API Key (X-API-Key 헤더)
     ADMIN_API_KEY: str = ""
 
+    # 이메일 발송 (Gmail SMTP)
+    EMAIL_HOST: str = "smtp.gmail.com"
+    EMAIL_PORT: int = 587
+    EMAIL_USER: str = ""
+    EMAIL_PASSWORD: str = ""
+
     class Config:
         env_file = str(_ROOT_ENV)
         extra = "ignore"
