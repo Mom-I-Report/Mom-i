@@ -1,0 +1,7 @@
+[build]
+buildCommand = "npm install && npm run build"
+
+[deploy]
+startCommand = "npx serve dist -l $PORT"
+healthcheckPath = "/"
+healthcheckTimeout = 60

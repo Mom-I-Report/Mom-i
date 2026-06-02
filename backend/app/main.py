@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # 엔티티를 먼저 import해야 create_tables()가 테이블을 인식한다
 import app.domain.report.entity  # noqa
 
-from app.interfaces.api.v1 import report_api, admin_api, share_api, subscription_api
+from app.interfaces.api.v1 import report_api, admin_api, share_api, subscription_api, dev_care_api
 from app.infrastructure.database.session import create_tables
 from app.infrastructure.scheduler import start_scheduler
 
@@ -42,6 +42,7 @@ app.include_router(report_api.router,       prefix="/api/v1/reports",       tags
 app.include_router(admin_api.router,        prefix="/api/v1/admin",         tags=["관리자"])
 app.include_router(share_api.router,        prefix="/api/v1/share-targets", tags=["공유 목록"])
 app.include_router(subscription_api.router, prefix="/api/v1/subscriptions", tags=["구독 관리"])
+app.include_router(dev_care_api.router,     prefix="/api/v1/dev-care",      tags=["발달 케어"])
 
 
 @app.get("/", tags=["시스템"])

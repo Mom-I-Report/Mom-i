@@ -1,17 +1,23 @@
 """
 notification/sender.py — SMS / 이메일 알림 발송
 
-SMS   : NCP Simple & Easy Notification Service (계정 등록 후 구현 예정)
-Email : Gmail SMTP (mwleedev1@gmail.com 앱 비밀번호 설정 완료)
+SMS   : Coolsms(Solapi) HMAC-SHA256 인증 — httpx 비동기
+Email : Gmail SMTP
 """
+import hashlib
+import hmac
 import logging
 import smtplib
 import asyncio
+import uuid
+from datetime import datetime, timezone
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 from typing import List, Literal, Optional
+
+import httpx
 
 from app.core.config import settings
 
@@ -33,11 +39,41 @@ def _smtp_send(to: str, msg: MIMEMultipart) -> None:
         smtp.sendmail(settings.EMAIL_USER, to, msg.as_string())
 
 
-# ── SMS ───────────────────────────────────────────────────────────────────────
+# ── SMS (Coolsms/Solapi) ─────────────────────────────────────────────────────
+
+def _coolsms_auth_header() -> str:
+    date   = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    salt   = uuid.uuid4().hex
+    sig    = hmac.new(
+        settings.COOLSMS_API_SECRET.encode(),
+        (date + salt).encode(),
+        hashlib.sha256,
+    ).hexdigest()
+    return f"HMAC-SHA256 apiKey={settings.COOLSMS_API_KEY}, date={date}, salt={salt}, signature={sig}"
+
 
 async def send_sms(contact: str, message: str) -> None:
-    # TODO: NCP SMS API 연동
-    logger.info("[알림-SMS] 미구현 — to=%s | %s", contact, message[:50])
+    if not settings.COOLSMS_API_KEY or not settings.COOLSMS_SENDER:
+        logger.warning("[알림-SMS] COOLSMS_API_KEY 또는 COOLSMS_SENDER 미설정 — 발송 생략")
+        return
+
+    to = contact.replace("-", "").replace(" ", "")
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                "https://api.solapi.com/messages/v4/send",
+                headers={"Authorization": _coolsms_auth_header()},
+                json={"message": {
+                    "to":   to,
+                    "from": settings.COOLSMS_SENDER.replace("-", ""),
+                    "text": message,
+                }},
+            )
+        resp.raise_for_status()
+        logger.info("[알림-SMS] 발송 완료 to=%s", contact)
+    except Exception as e:
+        logger.error("[알림-SMS] 발송 실패 to=%s: %s", contact, e)
 
 
 # ── 메시지 빌더 ───────────────────────────────────────────────────────────────

@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     EMAIL_USER: str = ""
     EMAIL_PASSWORD: str = ""
 
+    # SMS 발송 (Coolsms/Solapi)
+    COOLSMS_API_KEY: str = ""
+    COOLSMS_API_SECRET: str = ""
+    COOLSMS_SENDER: str = ""
+
     class Config:
         env_file = str(_ROOT_ENV)
         extra = "ignore"

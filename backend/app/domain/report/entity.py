@@ -22,6 +22,7 @@ from app.infrastructure.database.session import Base
 
 
 
+
 class WeeklyData(Base):
     """
     맘아이 서버로부터 push된 주간 원본 데이터 저장 테이블.
@@ -134,3 +135,26 @@ class Subscription(Base):
     user_type  = Column(String(20), nullable=False, default="LLMREPORT")
     is_active  = Column(Boolean, nullable=False, default=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
+
+
+class DevelopmentalCare(Base):
+    """
+    월령/주차별 발달 케어 참조 콘텐츠 테이블.
+
+    4~12개월(주차별, 37개 항목) + 13~36개월(월령별, 24개 항목) = 총 61개.
+    리포트 생성 시 아기 월령으로 조회해 발달 상태·수면 활동·예방접종·수면독립 가이드를 제공.
+    이 데이터는 읽기 전용 참조 데이터로, 앱 운영 중에는 변경되지 않는다.
+    """
+    __tablename__ = "Developmental_Care"
+
+    id                     = Column(Integer, primary_key=True, autoincrement=True)
+    type                   = Column(String(10), nullable=False)       # "weekly" | "monthly"
+    age_months             = Column(Integer, nullable=False)
+    age_weeks              = Column(Integer, nullable=True)            # weekly 타입만 존재
+    age_label              = Column(String(50), nullable=False)
+    wonder_weeks_leap      = Column(Integer, nullable=True)            # Leap 번호, 해당 없으면 null
+    is_sleep_regression    = Column(Boolean, nullable=False, default=False)
+    dev_status             = Column(Text, nullable=False)
+    sleep_activities       = Column(JSON, nullable=False)              # list[str], 3개
+    vaccination            = Column(Text, nullable=False)
+    separation_sleep_guide = Column(Text, nullable=False)

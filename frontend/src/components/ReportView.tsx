@@ -3,6 +3,7 @@ import { Chart, Radar } from 'react-chartjs-2';
 import AdBanner from './AdBanner';
 import './charts/ChartSetup';
 import { chartColors } from './charts/ChartSetup';
+import DevCareSection from './DevCareSection';
 
 interface ReportViewProps {
   data: any;
@@ -187,7 +188,7 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
 
   if (!data) return null;
 
-  const { summary, breath, body_temp, daily, daily_stats, ai_comment, sleep_guide, age_kick, parent_message } = data;
+  const { summary, breath, body_temp, daily, daily_stats, ai_comment, sleep_guide, parent_message } = data;
 
   // daily: 백엔드 응답 ({ day, sleep_h, restless_min } 또는 { date, sleep_min, restless_min })
   // daily_stats: 더미 데이터 형태 ({ day, sleep_h, restless_min })
@@ -525,14 +526,11 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
           })()}
 
           {/* Developmental Care */}
-          {age_kick && (
-            <div>
-              <div style={S.secTitle}>발달 케어</div>
-              <div style={{ ...s.card, ...s.cardDev }}>
-                <div style={s.cardTitle}>{age_kick.title}</div>
-                <div style={{ ...s.cardText, ...s.cardTextDev }} dangerouslySetInnerHTML={{ __html: md2html(age_kick.text || '') }} />
-              </div>
-            </div>
+          {meta?.ageMonths && (
+            <DevCareSection
+              ageMonths={meta.ageMonths}
+              childName={meta.name}
+            />
           )}
 
           {/* 부모 응원 메시지 */}
