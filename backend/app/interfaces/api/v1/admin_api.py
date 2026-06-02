@@ -131,6 +131,67 @@ async def emtake_sleep(
 
 
 @router.post(
+    "/emtake/generate-all",
+    summary="[테스트] 전체 구독자 리포트 일괄 생성",
+    dependencies=[Depends(verify_api_key)],
+)
+async def emtake_generate_all(
+    dry_run: bool = Query(True, description="True면 리포트만 생성, 알림 발송 생략"),
+    db: Session = Depends(get_db),
+):
+    """
+    Subscriptions 테이블의 모든 활성 구독자에 대해 리포트를 생성합니다.
+    dry_run=true(기본값): 리포트 생성만, 알림 미발송.
+    dry_run=false: 리포트 생성 + SMS/이메일 실제 발송.
+    """
+    from app.application.report import report_service
+    from app.domain.report.schemas import GenerateReportRequest
+    from app.infrastructure.notification.sender import notify_report_ready
+    from app.infrastructure.database.repository import subscription_repo
+
+    subs = subscription_repo.get_active_subscriptions(db)
+    ref_date = date.today() - timedelta(days=1)
+
+    results = []
+    for sub in subs:
+        try:
+            req_dict, shared_report_list = await emtake_client.build_generate_request_from_sensor(
+                sub.account, sub.ser_no, ref_date, sub.ser_no
+            )
+            req    = GenerateReportRequest(**req_dict)
+            report = await report_service.generate_report(db, req)
+            if not dry_run:
+                await notify_report_ready(
+                    shared_report_list,
+                    sub.ser_no,
+                    report.week_label,
+                    report.summary.avg_sleep_h,
+                    report.summary.avg_restless_min,
+                    report=report,
+                )
+            results.append({
+                "ser_no":             sub.ser_no,
+                "account":            sub.account,
+                "status":             "ok",
+                "week_label":         report.week_label,
+                "avg_sleep_h":        report.summary.avg_sleep_h,
+                "shared_report_list": shared_report_list,
+                "notified":           not dry_run,
+            })
+        except Exception as e:
+            results.append({
+                "ser_no":  sub.ser_no,
+                "account": sub.account,
+                "status":  "error",
+                "error":   str(e),
+            })
+
+    ok_count  = sum(1 for r in results if r["status"] == "ok")
+    err_count = len(results) - ok_count
+    return {"total": len(results), "ok": ok_count, "error": err_count, "results": results}
+
+
+@router.post(
     "/emtake/generate",
     summary="[테스트] relay 데이터로 리포트 직접 생성",
     dependencies=[Depends(verify_api_key)],
