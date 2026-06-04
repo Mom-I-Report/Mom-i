@@ -6,6 +6,7 @@ import { isEmtakeReportData } from '../utils/sleepReportData';
 
 type ReportMeta = {
   name?: string;
+  gender?: string;
   ageMonths?: number;
   weekNum?: number;
   weekStart?: string;
