@@ -235,8 +235,13 @@ def _build_prompt(ctx: dict) -> str:
     )
 
     # ── 4_INPUT 템플릿 변수 치환 ─────────────────────────────────────────────
+    baby_name   = ctx.get("baby_name") or "아기"
+    baby_gender = ctx.get("baby_gender")
+    gender_note = {"M": " (남아)", "F": " (여아)"}.get(baby_gender, "")
+
     prompt = (
         _INPUT_TEMPLATE
+        .replace("{{baby_name}}",       f"{baby_name}{gender_note}")
         .replace("{{age_month}}",       f"{age_months}개월 (약 {age_weeks}주령)")
         .replace("{{avg_sleep}}",       f"{tw['avg_sleep_h']}시간")
         .replace("{{wake_count}}",      f"{tw['cry_count']}회")

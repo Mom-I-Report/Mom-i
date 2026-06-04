@@ -11,7 +11,7 @@ report_api.py — 리포트 API 라우터
   GET  /* :       Authorization: Bearer <JWT> (맘아이 앱 → 리포트 서버)
                   JWT payload의 ser_no와 DB의 ser_no 일치 여부를 검증해 데이터를 격리한다.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.infrastructure.database.session import get_db
@@ -36,17 +36,19 @@ router = APIRouter()
 async def generate_report(
     req: GenerateReportRequest,
     db: Session = Depends(get_db),
+    force: bool = Query(False, description="True면 캐시 무시하고 Gemini 재호출 (Demo/테스트용)"),
 ):
     """
     맘아이 서버가 구독 유저의 주간 데이터를 push하면 AI 리포트를 생성해 리턴합니다.
 
     - 인증: X-API-Key 헤더 (서버 to 서버 전용)
     - 동일 주차 리포트가 이미 존재하면 캐시 반환 (Gemini 재호출 없음)
+    - `force=true`: 캐시 무시하고 항상 재생성 (Demo/테스트 전용)
     - `sleep` 배열은 반드시 7일치 (부족하면 422 자동 반환)
     - 이전 데이터 있으면 `trend` 블록 포함, 없으면 `null`
     """
     try:
-        return await report_service.generate_report(db, req)
+        return await report_service.generate_report(db, req, force=force)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

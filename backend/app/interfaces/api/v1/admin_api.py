@@ -12,7 +12,8 @@ admin_api.py — 관리자 대시보드 API
 """
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.infrastructure.database.session import get_db
@@ -159,7 +160,7 @@ async def emtake_generate_all(
                 sub.account, sub.ser_no, ref_date, sub.ser_no
             )
             req    = GenerateReportRequest(**req_dict)
-            report = await report_service.generate_report(db, req)
+            report = await report_service.generate_report(db, req, force=True)
             if not dry_run:
                 await notify_report_ready(
                     shared_report_list,
@@ -197,6 +198,7 @@ async def emtake_generate_all(
     dependencies=[Depends(verify_api_key)],
 )
 async def emtake_generate(
+    background_tasks: BackgroundTasks,
     account: str = Query(..., example="test1@test.com"),
     uid:     str = Query(..., example="TEST1"),
     ser_no:  str = Query(..., example="TEST-SER-001"),
@@ -216,9 +218,10 @@ async def emtake_generate(
             account, uid, ref_date, ser_no
         )
         req    = GenerateReportRequest(**req_dict)
-        report = await report_service.generate_report(db, req)
+        report = await report_service.generate_report(db, req, force=True)
         from app.infrastructure.notification.sender import notify_report_ready
-        await notify_report_ready(
+        background_tasks.add_task(
+            notify_report_ready,
             shared_report_list,
             ser_no,
             report.week_label,
@@ -232,10 +235,72 @@ async def emtake_generate(
             "week_label":         report.week_label,
             "avg_sleep_h":        report.summary.avg_sleep_h,
             "avg_restless_min":   report.summary.avg_restless_min,
-            "ai_comment_count":   len(report.ai_comment),
-            "sleep_guide":        report.sleep_guide.method_name if report.sleep_guide else None,
             "shared_report_list": shared_report_list,
-            "notifications_sent": len([c for c in shared_report_list if "@" in c]),
+            "report":             report.model_dump(mode="json"),
         }
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get(
+    "/reports/pdf",
+    summary="최신 리포트 PDF 다운로드",
+    dependencies=[Depends(verify_api_key)],
+)
+async def download_report_pdf(
+    ser_no: str = Query(..., example="TEST1"),
+    version: str = Query("mobile", description="mobile 또는 pc"),
+    db: Session = Depends(get_db),
+):
+    from app.infrastructure.database.repository.report_repo import get_reports_list
+    from app.domain.report.schemas import GenerateReportResponse
+    from app.core.config import settings
+
+    reports = get_reports_list(db, ser_no, limit=1)
+    if not reports:
+        raise HTTPException(status_code=404, detail="리포트가 없습니다.")
+
+    latest = reports[0]
+    report = GenerateReportResponse.model_validate(latest.report_json)
+
+    if settings.FRONTEND_URL:
+        pdf_bytes = await _capture_pdf_from_frontend(report, version, settings.FRONTEND_URL)
+    else:
+        from app.infrastructure.notification.pdf_generator import generate_report_pdfs
+        mobile_pdf, pc_pdf = await generate_report_pdfs(report)
+        pdf_bytes = mobile_pdf if version == "mobile" else pc_pdf
+
+    filename = f"momi_{report.week_start}_{version}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+async def _capture_pdf_from_frontend(report, version: str, frontend_url: str) -> bytes:
+    import base64, json
+    from playwright.async_api import async_playwright
+
+    encoded = base64.b64encode(json.dumps(report.model_dump(mode="json")).encode()).decode()
+    url = f"{frontend_url}/demo.html?report={encoded}&mode={version}"
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        page = await browser.new_page()
+        width = 390 if version == "mobile" else 860
+        await page.set_viewport_size({"width": width, "height": 1200})
+        await page.goto(url, wait_until="networkidle", timeout=30000)
+        # React 렌더링 + 차트 등 완전히 그려질 때까지 대기
+        await page.wait_for_timeout(4000)
+        # 전체 페이지 높이로 뷰포트 조정
+        height = await page.evaluate("document.body.scrollHeight")
+        await page.set_viewport_size({"width": width, "height": max(height, 1200)})
+        await page.wait_for_timeout(500)
+        pdf = await page.pdf(
+            format="A4",
+            print_background=True,
+            margin={"top": "0", "bottom": "0", "left": "0", "right": "0"},
+        )
+        await browser.close()
+    return pdf

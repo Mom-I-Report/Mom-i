@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     COOLSMS_API_SECRET: str = ""
     COOLSMS_SENDER: str = ""
 
+    # 프론트엔드 배포 URL (Playwright PDF 캡처용)
+    FRONTEND_URL: str = ""
+
     class Config:
         env_file = str(_ROOT_ENV)
         extra = "ignore"

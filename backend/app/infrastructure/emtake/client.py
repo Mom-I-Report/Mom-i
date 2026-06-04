@@ -371,6 +371,8 @@ def parse_sensor_data_day(raw: dict, target_date: date_cls) -> dict:
         "date":             str(target_date),
         "sleep_min":        parse_duration_str(sd.get("day_gs", "")),
         "restless_min":     parse_duration_str(sd.get("day_pr", "")),
+        "baby_name":        raw.get("name"),
+        "baby_gender":      raw.get("gender"),
         "baby_age_months":  _calc_age_months(raw.get("birth_date", "")),
         "breath_min":       b_min,
         "breath_max":       b_max,
@@ -506,6 +508,8 @@ async def build_generate_request_from_sensor(
 
     req_dict = {
         "ser_no":          ser_no,
+        "baby_name":       last.get("baby_name"),
+        "baby_gender":     last.get("baby_gender"),
         "baby_age_months": last["baby_age_months"],
         "week_start":      str(dates[0]),
         "user_type":       "baby" if user_type == "LLMREPORT" else "senior",

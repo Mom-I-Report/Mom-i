@@ -1,13 +1,3 @@
-/**
- * DevCareSection — 월령별 발달 케어 섹션
- *
- * Props:
- *   ageMonths  — 아기 월령 (API 조회 키)
- *   ageWeeks   — 주차 (선택, 4~12개월 정밀 조회 시)
- *   childName  — 아기 이름
- *   apiBase    — 백엔드 base URL (기본값: VITE_API_BASE_URL)
- */
-
 import { useEffect, useState, type CSSProperties } from 'react';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
@@ -35,23 +25,20 @@ interface Props {
 
 /* ─── 색상 토큰 ─────────────────────────────────── */
 const C = {
-  bgWarm:       '#FAF7F0',
-  bgLeap:       '#FFF8EC',
-  borderLeap:   '#E8C97A',
-  bgRegress:    '#FFF3E8',
-  borderRegress:'#E8A87A',
-  bgActivity:   '#FFFFFF',
-  borderActivity:'rgba(42,36,32,0.08)',
-  bgVacc:       '#EEF4FF',
-  borderVacc:   '#B8CFF0',
-  bgSleep:      '#E8F2EE',
-  borderSleep:  '#A8C8B8',
+  bgWarm:       '#EDE9E0',
+  bgLeap:       '#EDE9E0',
+  borderLeap:   '#C4A882',
+  bgRegress:    '#EDE9E0',
+  borderRegress:'#C4A882',
+  bgActivity:   '#EDE9E0',
+  borderActivity:'rgba(42,36,32,0.10)',
+  bgVacc:       '#EDE9E0',
+  borderVacc:   '#A8BBA0',
   textPrimary:  '#2A2420',
   textSecond:   '#7A6E64',
   textLeap:     '#7A5A00',
   textRegress:  '#7A3A00',
   textVacc:     '#1A3A7A',
-  textSleep:    '#1A4A35',
   green:        '#3D7A5C',
   amber:        '#C4956A',
   stepBg:       '#5C7A6B',
@@ -66,6 +53,15 @@ const C = {
 /* 4개월(16주)~36개월 전체 범위에서 현재 위치 % */
 function calcProgress(ageMonths: number): number {
   return Math.min(100, Math.max(0, ((ageMonths - 4) / (36 - 4)) * 100));
+}
+
+/* age_label에서 이모지와 "원더윅스" 관련 텍스트 제거 */
+function cleanAgeLabel(label: string): string {
+  return label
+    .replace(/★|☆|🌙|💛|🌀|✨|⭐|🌟/g, '')
+    .replace(/\s*원더윅스.*/g, '')
+    .trim()
+    .replace(/\s+/g, ' ');
 }
 
 export default function DevCareSection({ ageMonths, ageWeeks, childName = '아기', apiBase = API_BASE }: Props) {
@@ -100,8 +96,10 @@ export default function DevCareSection({ ageMonths, ageWeeks, childName = '아�
 
   const progress = calcProgress(data.age_months);
   const hasLeap = data.wonder_weeks_leap !== null;
-  const hasVacc = data.vaccination && !data.vaccination.includes('해당 없음') && !data.vaccination.startsWith('이번 달');
-  const hasNoVacc = !hasVacc;
+  const hasVacc = Boolean(data.vaccination)
+    && !data.vaccination.includes('해당 없음')
+    && !data.vaccination.includes('없음')
+    && !data.vaccination.startsWith('이번 달');
 
   return (
     <div style={s.wrap}>
@@ -110,11 +108,11 @@ export default function DevCareSection({ ageMonths, ageWeeks, childName = '아�
         <div style={s.headerTop}>
           <div>
             <span style={s.sectionLabel}>발달 케어</span>
-            <h3 style={s.headerTitle}>{childName} · {data.age_label}</h3>
+            <h3 style={s.headerTitle}>{childName} · {cleanAgeLabel(data.age_label)}</h3>
           </div>
           <div style={s.badges}>
             {hasLeap && (
-              <span style={s.badgeLeap}>Wonder Weeks Leap {data.wonder_weeks_leap}</span>
+              <span style={s.badgeLeap}>발달 도약기 {data.wonder_weeks_leap}단계</span>
             )}
             {data.is_sleep_regression && (
               <span style={s.badgeRegress}>수면 퇴행 시기</span>
@@ -138,7 +136,6 @@ export default function DevCareSection({ ageMonths, ageWeeks, childName = '아�
         {/* 수면 퇴행 알림 */}
         {data.is_sleep_regression && (
           <div style={s.regressAlert}>
-            <span style={s.regressIcon}>💛</span>
             <p style={s.regressText}>
               이 시기 수면 퇴행은 <strong>정상 발달 신호</strong>예요.
               {childName}가 새로운 능력을 익히느라 뇌가 바쁜 거랍니다.
@@ -146,27 +143,20 @@ export default function DevCareSection({ ageMonths, ageWeeks, childName = '아�
           </div>
         )}
 
-        {/* Wonder Weeks 설명 */}
+        {/* 발달 도약기 설명 */}
         {hasLeap && (
           <div style={s.leapAlert}>
-            <span style={s.leapIcon}>🌀</span>
             <p style={s.leapText}>
-              <strong>Wonder Weeks Leap {data.wonder_weeks_leap}</strong> 진입 시기예요.
+              이 시기는 아기의 뇌가 빠르게 성장하는 <strong>발달 도약기</strong>예요.
               평소보다 칭얼거림이 늘고 수면이 불규칙할 수 있습니다.
             </p>
           </div>
         )}
       </div>
 
-      {/* ── 발달 상태 ── */}
-      <div style={s.devStatusBox}>
-        <p style={s.devStatusLabel}>이번 주 발달 상태</p>
-        <p style={s.devStatusText}>{data.dev_status}</p>
-      </div>
-
-      {/* ── 수면 활동 3가지 ── */}
+      {/* ── 수면 도움 놀이 ── */}
       <div style={s.activitiesWrap}>
-        <p style={s.activitiesLabel}>이번 주 수면 놀이 · 3가지</p>
+        <p style={s.activitiesLabel}>이번 주 수면 도움 놀이</p>
         <div style={s.activityList}>
           {data.sleep_activities.map((act, i) => (
             <div key={i} style={s.activityRow}>
@@ -177,30 +167,15 @@ export default function DevCareSection({ ageMonths, ageWeeks, childName = '아�
         </div>
       </div>
 
-      {/* ── 하단 2열: 예방접종 + 수면독립 ── */}
-      <div style={s.bottomGrid}>
-        {/* 예방접종 */}
-        <div style={{ ...s.bottomCard, ...s.vaccCard }}>
-          <div style={s.bottomCardHeader}>
-            <span style={s.bottomIcon}>💉</span>
-            <span style={{ ...s.bottomCardTitle, color: C.textVacc }}>예방접종</span>
-          </div>
-          <p style={{ ...s.bottomCardText, color: hasNoVacc ? C.textSecond : C.textVacc }}>
+      {/* ── 예방접종 (있을 때만) ── */}
+      {hasVacc && (
+        <div style={{ ...s.vaccCard, borderRadius: 12, padding: '0.9rem 1rem', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: C.textVacc, margin: 0 }}>예방접종</p>
+          <p style={{ ...s.bottomCardText, color: C.textVacc }}>
             {data.vaccination}
           </p>
         </div>
-
-        {/* 수면독립 가이드 */}
-        <div style={{ ...s.bottomCard, ...s.sleepCard }}>
-          <div style={s.bottomCardHeader}>
-            <span style={s.bottomIcon}>🌙</span>
-            <span style={{ ...s.bottomCardTitle, color: C.textSleep }}>수면독립 가이드</span>
-          </div>
-          <p style={{ ...s.bottomCardText, color: C.textSleep }}>
-            {data.separation_sleep_guide}
-          </p>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -339,7 +314,6 @@ const s: Record<string, CSSProperties> = {
     borderRadius: 8,
     padding: '8px 12px',
   },
-  regressIcon: { fontSize: 16, flexShrink: 0, lineHeight: 1.4 },
   regressText: {
     fontSize: 12,
     color: C.textRegress,
@@ -355,33 +329,10 @@ const s: Record<string, CSSProperties> = {
     borderRadius: 8,
     padding: '8px 12px',
   },
-  leapIcon: { fontSize: 16, flexShrink: 0, lineHeight: 1.4 },
   leapText: {
     fontSize: 12,
     color: C.textLeap,
     lineHeight: 1.6,
-    margin: 0,
-  },
-
-  /* 발달 상태 */
-  devStatusBox: {
-    background: '#FFFFFF',
-    border: `0.5px solid ${C.border}`,
-    borderRadius: 12,
-    padding: '1rem 1.25rem',
-  },
-  devStatusLabel: {
-    fontSize: 10,
-    fontWeight: 500,
-    color: C.sectionLabel,
-    letterSpacing: '0.07em',
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  devStatusText: {
-    fontSize: 13,
-    color: C.textPrimary,
-    lineHeight: 1.75,
     margin: 0,
   },
 
@@ -431,39 +382,10 @@ const s: Record<string, CSSProperties> = {
     margin: 0,
   },
 
-  /* 하단 2열 */
-  bottomGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 10,
-  },
-  bottomCard: {
-    borderRadius: 12,
-    padding: '0.9rem 1rem',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-  },
+  /* 예방접종 */
   vaccCard: {
     background: C.bgVacc,
     border: `0.5px solid ${C.borderVacc}`,
-  },
-  sleepCard: {
-    background: C.bgSleep,
-    border: `0.5px solid ${C.borderSleep}`,
-  },
-  bottomCardHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-  },
-  bottomIcon: {
-    fontSize: 16,
-    lineHeight: 1,
-  },
-  bottomCardTitle: {
-    fontSize: 12,
-    fontWeight: 600,
   },
   bottomCardText: {
     fontSize: 12,

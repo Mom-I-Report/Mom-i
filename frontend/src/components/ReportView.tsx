@@ -13,6 +13,7 @@ interface ReportViewProps {
   contentMaxWidth?: number;
   meta?: {
     name?: string;
+    gender?: string;
     ageMonths?: number;
     weekNum?: number;
     weekStart?: string;
@@ -55,15 +56,15 @@ const s: Record<string, React.CSSProperties> = {
     marginBottom: 10,
   },
   cardNormal: {
-    background: C.greenBg,
+    background: "#EDE9E0",
     border: `0.5px solid ${C.greenBorder}`,
   },
   cardWarn: {
-    background: C.amberBg,
+    background: "#EDE9E0",
     border: `0.5px solid ${C.amberBorder}`,
   },
   cardDev: {
-    background: "#FAF8F3",
+    background: "#EDE9E0",
     border: "0.5px solid rgba(42,36,32,0.10)",
   },
   cardTitle: {
@@ -367,7 +368,7 @@ const ReportView: React.FC<ReportViewProps> = ({ data, meta, mode = 'default', h
             <div style={S.brandSub}>Premium Sleep Diagnostics</div>
           </div>
           <div style={S.headerInfo}>
-            {meta && <div style={S.headerMain}>{meta.name ? `${meta.name} (${meta.ageMonths}M)` : meta.ageMonths ? `아기 (${meta.ageMonths}M)` : ''}</div>}
+            {meta && <div style={S.headerMain}>{meta.name ? `${meta.name} ${meta.gender === 'M' ? '왕자님' : meta.gender === 'F' ? '공주님' : ''}(${meta.ageMonths}M)`.trim() : meta.ageMonths ? `아기 (${meta.ageMonths}M)` : ''}</div>}
             {meta?.weekNum && <div style={S.headerSub}>Week {meta.weekNum} ({meta.weekStart})</div>}
           </div>
         </div>

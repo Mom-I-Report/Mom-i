@@ -24,6 +24,9 @@ ChartJS.register(
   BarElement
 );
 
+// PDF 캡처 시 그래프 선명도 향상 (devicePixelRatio 2x)
+ChartJS.defaults.devicePixelRatio = 2;
+
 // 재사용 가능한 차트 옵션/색상 설정
 export const chartColors = {
   radarBackground: 'rgba(28,28,30,0.05)',

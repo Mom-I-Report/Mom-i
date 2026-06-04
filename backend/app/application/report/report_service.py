@@ -138,6 +138,8 @@ def _build_summary(req: GenerateReportRequest) -> ReportSummary:
         month_restless_h=req.monthly.month_restless_h,
         week_sleep_h=req.monthly.week_sleep_h,
         week_restless_h=req.monthly.week_restless_h,
+        humidity_min=req.environment.humidity_min,
+        humidity_max=req.environment.humidity_max,
         humidity_avg=req.environment.humidity_avg,
         bright_avg=req.environment.bright_avg,
         nap_count=nap_count if nap_count > 0 else None,
@@ -158,6 +160,8 @@ def _build_daily(req: GenerateReportRequest) -> List[DailySummary]:
             day=_DAY_KO[s.date.weekday()],
             sleep_h=round(s.sleep_min / 60, 1),
             restless_min=s.restless_min,
+            wakeup_count=s.wakeup_count,
+            sessions=s.sessions,
         )
         for s in req.sleep
     ]
@@ -333,6 +337,8 @@ def _build_ai_context(
     (DB 쿼리 중복 없음)
     """
     ctx: dict = {
+        "baby_name": req.baby_name,
+        "baby_gender": req.baby_gender,
         "baby_age_months": req.baby_age_months,
         "week_label": _week_label(req.week_start),
         "pattern_summary": _build_pattern_summary(
@@ -430,7 +436,7 @@ def _build_ai_context(
 
 # ── Public API ───────────────────────────────────────────────────────────────
 
-async def generate_report(db: Session, req: GenerateReportRequest) -> GenerateReportResponse:
+async def generate_report(db: Session, req: GenerateReportRequest, force: bool = False) -> GenerateReportResponse:
     """
     주간 리포트를 생성하고 DB에 저장한 뒤 반환한다. (async)
 
@@ -475,14 +481,15 @@ async def generate_report(db: Session, req: GenerateReportRequest) -> GenerateRe
         monthly_json=req.monthly.model_dump(),
     )
 
-    # Step 2 — 캐시 확인
-    cached = report_repo.get_existing_report(db, req.ser_no, req.week_start)
-    if cached:
-        logger.info(
-            "[리포트 캐시 히트] ser_no=%s week_start=%s — Gemini 재호출 생략",
-            req.ser_no, req.week_start,
-        )
-        return GenerateReportResponse.model_validate(cached.report_json)
+    # Step 2 — 캐시 확인 (force=True면 건너뜀)
+    if not force:
+        cached = report_repo.get_existing_report(db, req.ser_no, req.week_start)
+        if cached:
+            logger.info(
+                "[리포트 캐시 히트] ser_no=%s week_start=%s — Gemini 재호출 생략",
+                req.ser_no, req.week_start,
+            )
+            return GenerateReportResponse.model_validate(cached.report_json)
 
     # Step 3 — 이전 2주치 조회 (1회, 이후 재사용)
     prev_data = report_repo.get_recent_weekly_data(
@@ -511,6 +518,9 @@ async def generate_report(db: Session, req: GenerateReportRequest) -> GenerateRe
         week_start=req.week_start,
         week_label=week_label,
         generated_at=datetime.now(),
+        baby_name=req.baby_name,
+        baby_gender=req.baby_gender,
+        baby_age_months=req.baby_age_months,
         summary=summary,
         breath=breath_summary,
         body_temp=body_temp_summary,

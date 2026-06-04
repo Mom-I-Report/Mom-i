@@ -128,6 +128,8 @@ class GenerateReportRequest(BaseModel):
     model_config = ConfigDict(extra='ignore')
 
     ser_no: str
+    baby_name: Optional[str] = None
+    baby_gender: Optional[str] = None   # "M" | "F"
     baby_age_months: int
     week_start: date
     sleep: List[SleepDay]
@@ -156,6 +158,8 @@ class DailySummary(BaseModel):
     day: str
     sleep_h: float
     restless_min: int
+    wakeup_count: Optional[int] = None
+    sessions: Optional[List[SleepSession]] = None
 
 
 class TrendData(BaseModel):
@@ -207,6 +211,8 @@ class ReportSummary(BaseModel):
     month_restless_h: float
     week_sleep_h: Optional[float] = None
     week_restless_h: Optional[float] = None
+    humidity_min: Optional[float] = None
+    humidity_max: Optional[float] = None
     humidity_avg: Optional[float] = None
     bright_avg: Optional[float] = None
     nap_count: Optional[int] = None     # 주간 낮잠 세션 수 합계
@@ -216,8 +222,8 @@ class AiCommentItem(BaseModel):
     """AI 분석 팁 단건. 프론트 카드 1개에 대응."""
     model_config = ConfigDict(extra='ignore')
 
-    type: str       # "caution" | "good"
-    icon: str       # 이모지
+    type: str               # "caution" | "good" | "tip" | "developmental"
+    icon: Optional[str] = None
     title: str
     text: str
 
@@ -260,6 +266,9 @@ class GenerateReportResponse(BaseModel):
     week_start: date
     week_label: str
     generated_at: datetime
+    baby_name: Optional[str] = None
+    baby_gender: Optional[str] = None
+    baby_age_months: int = 0
     summary: ReportSummary
     breath: BreathSummary
     body_temp: BodyTempSummary

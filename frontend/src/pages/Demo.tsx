@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import ReportSplitLayout from '../components/ReportSplitLayout';
 import { downloadPdf } from '../utils/downloadPdf';
 import { enrichSleepReportData, buildDateRange, isEmtakeReportData } from '../utils/sleepReportData';
@@ -86,6 +86,21 @@ const Demo: React.FC = () => {
     cryCount: 4, leaveCount: 1,
   });
 
+  // URL ?report=<base64> 파라미터로 리포트 데이터 주입 (백엔드 PDF 캡처용)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const encoded = params.get('report');
+    const mode = params.get('mode') as 'mobile' | 'pc' | null;
+    if (encoded) {
+      try {
+        const json = JSON.parse(atob(encoded));
+        setRawJsonData(json);
+        setReportData(json);
+        if (mode) setViewMode(mode);
+      } catch {}
+    }
+  }, []);
+
   const displayReportData = useMemo(
     () => enrichSleepReportData(rawJsonData ?? reportData, { weekStart, sleepDays: sleepData }),
     [reportData, rawJsonData, weekStart, sleepData],
@@ -98,7 +113,11 @@ const Demo: React.FC = () => {
 
   const hasSleepReport = Object.keys(sleepReportPayload).some(k => /^\d{4}-\d{2}-\d{2}$/.test(k));
 
-  const sleepChildName = reportMeta?.name ?? babyName;
+  const sleepChildName = (() => {
+    const name = reportMeta?.name || babyName || '아기';
+    const title = reportMeta?.gender === 'M' ? ' 왕자님' : reportMeta?.gender === 'F' ? ' 공주님' : '';
+    return `${name}${title}`;
+  })();
   const sleepDateRange = buildDateRange(rawJsonData ?? reportData, reportMeta);
   const apiReportForGuidelines =
     reportData && !isEmtakeReportData(reportData) ? reportData : null;
@@ -148,13 +167,14 @@ const Demo: React.FC = () => {
     };
   };
 
-  const buildMeta = (req: any) => {
+  const buildMeta = (req: any, res?: any) => {
     const [wy, wm, wd] = req.week_start.split('-').map(Number);
     const ws = new Date(wy, wm - 1, wd);
     const we = new Date(wy, wm - 1, wd + 6);
     const fmt = (d: Date) => `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
     return {
-      name: babyName || undefined,
+      name: res?.baby_name || babyName || undefined,
+      gender: res?.baby_gender || undefined,
       ageMonths: req.baby_age_months,
       weekNum: Math.floor((ws.getDate() - 1) / 7) + 1,
       weekStart: fmt(ws),
@@ -170,7 +190,7 @@ const Demo: React.FC = () => {
     setRawJsonData(null);
     try {
       const req = buildRequest();
-      const response = await fetch(`${BASE_URL}/api/v1/reports/generate`, {
+      const response = await fetch(`${BASE_URL}/api/v1/reports/generate?force=true`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': DEFAULT_API_KEY },
         body: JSON.stringify(req),
@@ -178,7 +198,7 @@ const Demo: React.FC = () => {
       if (!response.ok) throw new Error(`서버 오류 ${response.status}: ${await response.text()}`);
       const result = await response.json();
       setReportData(result);
-      setReportMeta(buildMeta(req));
+      setReportMeta(buildMeta(req, result));
     } catch (err: any) {
       setError(`API 호출 실패: ${err.message}`);
     } finally {
@@ -198,8 +218,6 @@ const Demo: React.FC = () => {
     const weekStartStr = toDateStr(lastDate);
     setWeekStart(weekStartStr);
     setAgeMonths(calcAgeMonths(json.birth_date || ''));
-    if (json.name) setBabyName(json.name);
-
     const classifySessions = (sessions: any[]): any[] =>
       sessions.map(s => ({ ...s, is_nap: parseInt(s.start?.split(':')[0] ?? '0') < 21 }));
 
@@ -273,7 +291,7 @@ const Demo: React.FC = () => {
     const we = new Date(wy, wm - 1, wd + 6);
     setReportData(json);
     setReportMeta({
-      name: (json.name as string) || babyName,
+      name: babyName,
       weekStart: `${ws.getFullYear()}년 ${ws.getMonth() + 1}월 ${ws.getDate()}일`,
       weekEnd: `${we.getDate()}일`,
     });

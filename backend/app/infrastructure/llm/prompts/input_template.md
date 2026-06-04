@@ -1,5 +1,6 @@
 # INPUT DATA
 
+아기 이름/성별: {{baby_name}}
 아기 월령: {{age_month}}
 이번 주 평균 수면: {{avg_sleep}}
 울음 감지 횟수: {{wake_count}}

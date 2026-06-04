@@ -55,8 +55,8 @@ export function toSleepReportData(data: Record<string, unknown> | null | undefin
         Max: summary.temp_max ?? summary.temp_avg,
       },
       Humidity: {
-        Min: summary.humidity_min,
-        Max: summary.humidity_max,
+        Min: (summary.humidity_min as number | undefined) ?? (summary.humidity_avg as number | undefined),
+        Max: (summary.humidity_max as number | undefined) ?? (summary.humidity_avg as number | undefined),
       },
     };
   }

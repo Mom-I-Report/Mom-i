@@ -215,30 +215,44 @@ export default function SleepReport({
   const humidity = (latestEnv.Humidity ?? { Min: 0, Max: 0 }) as { Min: number; Max: number };
   const breathEnv = (latestEnv.Breath ?? {}) as { Min?: number; Max?: number };
 
+  const tempAvg = ((indoor.Min ?? 20) + (indoor.Max ?? 22)) / 2;
+  const tempScore = Math.round(Math.max(0, 100 - Math.abs(tempAvg - 20) * 8));
+  const tempHint = (indoor.Max ?? 22) > 26 ? "취침 온도 다소 높음"
+    : (indoor.Min ?? 20) < 16 ? "취침 온도 다소 낮음"
+    : "적정 범위 유지";
+  const tempOk = (indoor.Min ?? 20) >= 16 && (indoor.Max ?? 22) <= 26;
+
+  const hasHumidity = (humidity.Min ?? 0) > 0 || (humidity.Max ?? 0) > 0;
+  const humAvg = hasHumidity ? ((humidity.Min ?? 50) + (humidity.Max ?? 50)) / 2 : 50;
+  const humScore = hasHumidity ? Math.round(Math.max(0, 100 - Math.max(0, humAvg - 60) * 2 - Math.max(0, 40 - humAvg) * 2)) : 0;
+
+  const breathAvg = ((breathEnv.Min ?? 20) + (breathEnv.Max ?? 30)) / 2;
+  const breathScore = Math.round(Math.max(0, 100 - Math.max(0, breathAvg - 35) * 4 - Math.max(0, 20 - breathAvg) * 4));
+
   const envItems = [
     {
       icon: "🌡️", label: "실내 온도",
       range: `${indoor.Min?.toFixed(1)}–${indoor.Max?.toFixed(1)}°C`,
-      score: Math.round(((((indoor.Min ?? 18) + (indoor.Max ?? 22)) / 2) - 10) / 20 * 100),
+      score: tempScore,
       color: C.blue,
-      hint:  (indoor.Min ?? 18) < 16 ? "취침 온도 다소 낮음" : "적정 범위 유지",
-      hintOk: !((indoor.Min ?? 18) < 16),
+      hint: tempHint,
+      hintOk: tempOk,
     },
     {
       icon: "💧", label: "습도",
-      range: `${humidity.Min ?? 0}–${humidity.Max ?? 0}%`,
-      score: Math.round(((humidity.Min ?? 40) + (humidity.Max ?? 60)) / 2),
+      range: hasHumidity ? (humidity.Min === humidity.Max ? `${humidity.Min}%` : `${humidity.Min}–${humidity.Max}%`) : "데이터 없음",
+      score: humScore,
       color: C.teal,
-      hint:  ((humidity.Max ?? 0) - (humidity.Min ?? 0)) > 30 ? "습도 변동폭 큼" : "적정 습도 유지",
-      hintOk: !(((humidity.Max ?? 0) - (humidity.Min ?? 0)) > 30),
+      hint: !hasHumidity ? "센서 미지원" : ((humidity.Max ?? 0) - (humidity.Min ?? 0)) > 30 ? "습도 변동폭 큼" : "적정 습도 유지",
+      hintOk: !hasHumidity ? true : !(((humidity.Max ?? 0) - (humidity.Min ?? 0)) > 30),
     },
     {
       icon: "🌬️", label: "호흡수",
-      range: `${breathEnv.Min}–${breathEnv.Max} rpm`,
-      score: 60,
+      range: `${breathEnv.Min ?? 0}–${breathEnv.Max ?? 0} rpm`,
+      score: breathScore,
       color: C.neutral,
-      hint:  (breathEnv.Max ?? 0) > 30 ? "호흡수 최대값 확인" : "정상 범위",
-      hintOk: !((breathEnv.Max ?? 0) > 30),
+      hint: (breathEnv.Max ?? 0) > 40 ? "호흡수 최대값 확인" : "정상 범위",
+      hintOk: !((breathEnv.Max ?? 0) > 40),
     },
   ];
 
@@ -282,7 +296,7 @@ export default function SleepReport({
       <div style={compact ? s.headerCompact : s.header}>
         <div style={s.headerRow}>
           <div>
-            <h1 style={compact ? { ...s.headerTitle, fontSize: 16 } : s.headerTitle}>{childName} 수면 리포트</h1>
+            <h1 style={compact ? { ...s.headerTitle, fontSize: 16 } : s.headerTitle}>{childName}의 수면 리포트</h1>
             <p style={compact ? { ...s.headerSub, fontSize: 11 } : s.headerSub}>{dateRange} · 주간 분석</p>
           </div>
           <span style={compact ? { ...s.statusBadge, fontSize: 10, padding: "3px 8px" } : s.statusBadge}>✓ NORMAL</span>
@@ -335,7 +349,7 @@ export default function SleepReport({
                 );
               })}
             </div>
-            <span style={{...s.tlWakeup, color: d.wu > 10 ? C.amberDark : C.textSecond}}>{d.wu}회</span>
+            <span style={{...s.tlWakeup, color: d.wu > 10 ? C.amberDark : C.textSecond}}>● {d.wu}회</span>
           </div>
         ))}
       </div>
@@ -346,7 +360,7 @@ export default function SleepReport({
       <div style={grid2Style}>
         <div style={cardStyle(compact)}>
           <p style={compact ? { ...s.chartTitle, fontSize: 12 } : s.chartTitle}>수면 효율 (일별)</p>
-          <p style={compact ? { ...s.chartSub, marginBottom: 6 } : s.chartSub}>순수면 / 총수면 시간 비율</p>
+          <p style={compact ? { ...s.chartSub, marginBottom: 6 } : s.chartSub}>뒤척임을 제외한 순수면 비율 · 80% 이상이면 양호</p>
           <div style={chartBoxStyle}>
             <Bar ref={effChartRef} data={effChartData} options={effChartOpts as object}
               aria-label="일별 수면 효율 막대 차트" />
@@ -357,8 +371,8 @@ export default function SleepReport({
           </div>
         </div>
         <div style={cardStyle(compact)}>
-          <p style={compact ? { ...s.chartTitle, fontSize: 12 } : s.chartTitle}>주간 총수면 트렌드</p>
-          <p style={compact ? { ...s.chartSub, marginBottom: 6 } : s.chartSub}>권장 수면: 12–14시간 (영아 기준)</p>
+          <p style={compact ? { ...s.chartTitle, fontSize: 12 } : s.chartTitle}>일별 총수면 시간</p>
+          <p style={compact ? { ...s.chartSub, marginBottom: 6 } : s.chartSub}>점선 아래로 내려가면 수면 부족 · 영아 권장 12–14시간</p>
           <div style={chartBoxStyle}>
             <Line ref={trendChartRef} data={trendChartData} options={trendChartOpts as object}
               aria-label="주간 수면시간 추이 라인 차트" />
