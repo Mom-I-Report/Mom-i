@@ -55,13 +55,24 @@ function calcProgress(ageMonths: number): number {
   return Math.min(100, Math.max(0, ((ageMonths - 4) / (36 - 4)) * 100));
 }
 
-/* age_label에서 이모지와 "원더윅스" 관련 텍스트 제거 */
+/* age_label에서 이모지, "원더윅스", "도약 N" 이후 텍스트 제거 — "생후 X주 (X개월)" 형식만 남김 */
 function cleanAgeLabel(label: string): string {
   return label
-    .replace(/★|☆|🌙|💛|🌀|✨|⭐|🌟/g, '')
+    .replace(/[★☆🌙💛🌀✨⭐🌟].*/g, '')
     .replace(/\s*원더윅스.*/g, '')
+    .replace(/\s*도약\s*\d*.*/g, '')
     .trim()
     .replace(/\s+/g, ' ');
+}
+
+/* separation_sleep_guide에서 "도약 N", "원더윅스" 등 전문 용어 제거 */
+function cleanGuideText(text: string): string {
+  return text
+    .replace(/도약\s*\d+/g, '이 시기')
+    .replace(/원더윅스\s*도약/g, '발달 도약기')
+    .replace(/원더윅스/g, '발달 도약기')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
 export default function DevCareSection({ ageMonths, ageWeeks, childName = '아기', apiBase = API_BASE }: Props) {
@@ -154,6 +165,14 @@ export default function DevCareSection({ ageMonths, ageWeeks, childName = '아�
         )}
       </div>
 
+      {/* ── 수면 독립 가이드 ── */}
+      {data.separation_sleep_guide && (
+        <div style={s.guideWrap}>
+          <p style={s.guideLabel}>수면 독립 가이드</p>
+          <p style={s.guideText}>{cleanGuideText(data.separation_sleep_guide)}</p>
+        </div>
+      )}
+
       {/* ── 수면 도움 놀이 ── */}
       <div style={s.activitiesWrap}>
         <p style={s.activitiesLabel}>이번 주 수면 도움 놀이</p>
@@ -173,6 +192,9 @@ export default function DevCareSection({ ageMonths, ageWeeks, childName = '아�
           <p style={{ fontSize: 12, fontWeight: 600, color: C.textVacc, margin: 0 }}>예방접종</p>
           <p style={{ ...s.bottomCardText, color: C.textVacc }}>
             {data.vaccination}
+          </p>
+          <p style={{ fontSize: 11, color: C.textSecond, margin: 0, lineHeight: 1.5 }}>
+            이 정보는 연령에 맞는 참고 콘텐츠입니다. 실제 접종 전 반드시 소아과 전문의와 상담하세요.
           </p>
         </div>
       )}
@@ -333,6 +355,28 @@ const s: Record<string, CSSProperties> = {
     fontSize: 12,
     color: C.textLeap,
     lineHeight: 1.6,
+    margin: 0,
+  },
+
+  /* 수면 독립 가이드 */
+  guideWrap: {
+    background: '#FFFFFF',
+    border: `0.5px solid ${C.border}`,
+    borderRadius: 12,
+    padding: '1rem 1.25rem',
+  },
+  guideLabel: {
+    fontSize: 10,
+    fontWeight: 500,
+    color: C.sectionLabel,
+    letterSpacing: '0.07em',
+    textTransform: 'uppercase' as const,
+    marginBottom: 8,
+  },
+  guideText: {
+    fontSize: 13,
+    color: C.textPrimary,
+    lineHeight: 1.65,
     margin: 0,
   },
 
